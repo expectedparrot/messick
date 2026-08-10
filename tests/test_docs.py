@@ -9,6 +9,7 @@ def test_readme_has_agent_bootstrap_and_artwork():
     assert "ep jobs cost" in text
     assert "explicit approval" in text
     assert "docs/assets/messick-artwork.png" in text
+    assert "https://expectedparrot.github.io/messick/" in text
     assert (ROOT/"docs/assets/messick-artwork.png").is_file()
 
 def test_static_docs_link_agent_guidance_and_artwork():

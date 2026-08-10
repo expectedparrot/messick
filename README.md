@@ -2,6 +2,8 @@
 
 ![Messick artwork: a survey-taking parrot between brackets](docs/assets/messick-artwork.png)
 
+**Documentation:** [expectedparrot.github.io/messick](https://expectedparrot.github.io/messick/)
+
 Messick is an agent-first package for pretesting, revising, and validating EDSL
 `Survey` instruments. It tracks what an instrument is intended to measure and
 support, maintains immutable revisions and evidence provenance, and keeps
@@ -122,5 +124,6 @@ messick results ingest --plan <plan-id> --results data/results/pretest.ep
 Humanize is optional. Human responses, when supplied, are recorded as a
 separate evidence source and never silently pooled with simulations.
 
-See [the local documentation](docs/index.html), [the specification](SPEC_messick.md),
+See [the published documentation](https://expectedparrot.github.io/messick/),
+[the local documentation](docs/index.html), [the specification](SPEC_messick.md),
 and [the changelog](CHANGELOG.md).
