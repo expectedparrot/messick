@@ -62,11 +62,14 @@ def generate_job(store,plan_id,output):
                         original.add_question(Question(q["type"],**kwargs))
             if p["mode"]=="behavioral": jobs=original.to_jobs()
             else:
-                probe=QuestionFreeText(question_name="messick_cognitive_probe",question_text="""Review this survey question as the described respondent.\n\nQuestion ID: {{ question_id }}\nQuestion: {{ question_text }}\nOptions: {{ question_options }}\n\nReturn JSON with keys paraphrase, answer_process, ambiguity, missing_options, assumptions, sensitivity, construct_distinction, and difficulty. Treat this as a diagnostic hypothesis, not an observation of human cognition.""")
+                probe=QuestionFreeText(question_name="messick_cognitive_probe",question_text="""Review this survey question as the described respondent.\n\nQuestion ID: {{ scenario.question_id }}\nQuestion: {{ scenario.question_text }}\nOptions: {{ scenario.question_options }}\n\nReturn JSON with keys paraphrase, answer_process, ambiguity, missing_options, assumptions, sensitivity, construct_distinction, and difficulty. Treat this as a diagnostic hypothesis, not an observation of human cognition.""")
                 scenarios=ScenarioList([Scenario({"question_id":q.question_name,"question_text":q.question_text,"question_options":getattr(q,"question_options",[])}) for q in original.questions])
                 jobs=Survey([probe]).by(scenarios)
             if p.get("agent_list"): jobs=jobs.by(AgentList.git.load(str(store.root/p["agent_list"]["path"])))
             if p.get("model_list"): jobs=jobs.by(ModelList.git.load(str(store.root/p["model_list"]["path"])))
+            # Render every prompt before saving the handoff. This catches invalid
+            # scenario references locally, before ep submits a paid remote job.
+            jobs.prompts()
             saved=jobs.git.save(str(output),message=f"Messick {p['mode']} pretest {plan_id}")
             Jobs.git.load(str(output))
     except ImportError as exc: raise MessickError("EDSL_UNAVAILABLE","EDSL is required to generate Jobs.ep.","Install `messick[edsl]`.") from exc

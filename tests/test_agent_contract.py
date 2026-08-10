@@ -41,7 +41,7 @@ def test_agent_next_is_a_portable_complete_static_loop(tmp_path, capsys):
 
 
 def test_execution_design_is_explicit_and_empty_design_fails(tmp_path, capsys):
-    from edsl import Agent, AgentList, Model, ModelList
+    from edsl import Agent, AgentList, Jobs, Model, ModelList
 
     ex = ROOT / "examples/simulation_only"
     call(capsys, tmp_path, "init", "--title", "Matrix")
@@ -58,6 +58,11 @@ def test_execution_design_is_explicit_and_empty_design_fails(tmp_path, capsys):
     assert generated["job"]["agent_list"]["sha256"] == plan["agent_list"]["sha256"]
     assert generated["job"]["model_list"]["sha256"] == plan["model_list"]["sha256"]
     assert generated["handoff"][0]["argv"] == ["ep", "inspect", str(tmp_path / "edsl_jobs/test.ep")]
+    jobs = Jobs.git.load(str(tmp_path / "edsl_jobs/test.ep"))
+    rendered = jobs.prompts().to_list()
+    assert len(rendered) == 6
+    assert all("{{" not in row[0].text for row in rendered)
+    assert "Question ID: trust_1" in rendered[0][0].text
 
     empty = tmp_path / "empty-agents.ep"
     AgentList([]).git.save(str(empty), message="empty")
