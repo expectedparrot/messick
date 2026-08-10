@@ -1,14 +1,364 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Messick documentation</title>
-<style>body{font:17px/1.55 system-ui;max-width:55rem;margin:3rem auto;padding:0 1rem;color:#18212b}code,pre{background:#f2f4f7;padding:.15rem .35rem}pre{padding:1rem;overflow:auto}a{color:#075985}</style></head>
-<body><img src="assets/messick-artwork.png" alt="Messick: a survey-taking parrot between brackets" style="width:100%;height:auto"><h1>Messick</h1><p>Agent-first pretesting and claim-specific validation for EDSL Survey instruments.</p>
-<nav><a href="concepts.html">Concepts</a> · <a href="cli.html">CLI</a> · <a href="agent.html">Agents</a> · <a href="methods.html">Methods</a> · <a href="troubleshooting.html">Troubleshooting</a> · <a href="schemas/envelope.schema.json">Schemas</a></nav>
-<h2 id="concepts">Concepts</h2><p>An instrument has immutable revisions. An intent declares a construct, score interpretation, population, use, evidence tier, and tolerances. Issues connect evidence to auditable decisions.</p>
-<h2 id="cli">CLI</h2><pre>messick init --title TITLE
-messick instrument import --survey Survey.ep
-messick intent add --input intent.json
-messick validate --strict
-messick report context</pre><p>All successful and failed commands use the JSON envelope defined in the specification. Run any command with <code>--help</code> for its exact options.</p>
-<h2 id="agents">Agent integration</h2><p><code>messick agent next</code> returns one deterministic recommended action with its working directory, argument array, mutation and approval flags, reason, and—when needed—an input schema.</p>
-<h2 id="evidence">Evidence boundaries</h2><p>Simulated responses are pretesting evidence, not observations of human measurement. Humanize fielding is optional and external. Paid inference is performed by <code>ep</code>, never Messick.</p>
-</body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="A practical worked tutorial for pretesting, revising, and validating a structured survey instrument with Messick.">
+  <title>Expected Parrot | Instrument Pretesting with Messick</title>
+  <style>
+    :root{--green:#428a5f;--dark:#214d35;--light:#eef7f1;--ink:#17201b;--muted:#617068;--paper:#f5f7f5;--panel:#fff;--rule:#dce4df;--amber:#c27b17;--red:#a9473d;--code:#19251e;--sidebar:285px;--measure:790px;--serif:Georgia,"Times New Roman",serif;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;--mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:var(--paper);font:16px/1.68 var(--sans)}#progress{position:fixed;z-index:30;inset:0 auto auto 0;width:0;height:4px;background:var(--green)}
+    nav{position:fixed;z-index:20;inset:0 auto 0 0;width:var(--sidebar);overflow:auto;padding:24px 22px 42px;color:#eaf4ed;background:var(--dark)}nav .brand{display:block;margin-bottom:22px;padding:12px;color:var(--ink);background:#fff;border-radius:10px;text-decoration:none}nav .brand img{display:block;width:100%;height:auto}nav .brand strong{display:block;margin-top:6px;font:700 15px/1.2 var(--serif)}nav .book{margin:0 8px 24px;font:600 20px/1.25 var(--serif)}nav .part{margin:20px 8px 5px;color:#9fd2b2;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}nav>a:not(.brand){display:block;padding:6px 8px;color:#d4e9dc;text-decoration:none;border-radius:6px}nav>a:not(.brand):hover{color:#fff;background:#2e6245}.small{margin:27px 8px 0;color:#b6cdbd;font-size:12px}.nav-toggle{display:none;width:100%;padding:9px;color:#fff;background:#2e6245;border:1px solid #72a685;border-radius:6px;font-weight:700;text-align:left}
+    main{margin-left:var(--sidebar)}article{max-width:920px;margin:auto;padding:48px 48px 110px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.025)}header{padding:50px 0 44px;border-bottom:3px solid var(--green)}header .hero-art{display:block;width:min(700px,100%);margin:0 auto 34px}.eyebrow{color:var(--green);font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase}h1,h2,h3,h4{font-family:var(--serif);font-weight:600;line-height:1.28}h1{max-width:790px;margin:13px 0 19px;font-size:clamp(40px,6vw,61px);letter-spacing:-.025em}h2{margin:78px 0 22px;padding:12px 0 8px;color:var(--green);font-size:32px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}h3{margin:40px 0 13px;font-size:23px}h4{margin:25px 0 8px;font-size:18px}.chapter{font-size:.55em;vertical-align:.35em}.dek{max-width:750px;color:var(--muted);font-size:21px;line-height:1.5}.meta{display:flex;flex-wrap:wrap;gap:10px 24px;margin-top:27px;color:var(--muted);font-size:13px}
+    p,ul,ol,table,pre,.callout,figure,.flow,.grid,.metric{max-width:var(--measure)}a{color:#26744a}code{padding:.14em .35em;background:#eef2ef;border-radius:4px;font:88% var(--mono)}pre{position:relative;overflow:auto;margin:18px 0 27px;padding:20px 58px 20px 22px;color:#d9e5dc;background:var(--code);border-radius:8px;font:13px/1.55 var(--mono)}pre code{padding:0;color:inherit;background:none}.copy{position:absolute;top:9px;right:9px;padding:5px 8px;color:#d8ebe0;background:#34493b;border:0;border-radius:5px;font:11px var(--sans);cursor:pointer}.copy:hover{color:#fff;background:var(--green)}
+    .callout{margin:24px 0;padding:18px 22px;background:linear-gradient(135deg,#fafcfb,var(--light));border-left:4px solid var(--green);border-radius:0 8px 8px 0}.callout.warn{background:#fff7e8;border-color:var(--amber)}.callout.stop{background:#fff0ed;border-color:var(--red)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:17px}.card{padding:18px;background:#fff;border:1px solid var(--rule);border-radius:8px;box-shadow:0 2px 7px rgba(0,0,0,.035)}.card h4{margin-top:0;color:var(--dark)}
+    table{width:100%;margin:20px 0 28px;border-collapse:collapse;font-size:14px}th,td{padding:11px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}th{color:#fff;background:var(--green)}tbody tr:nth-child(even){background:#f7f9f7}.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:25px 0}.step{position:relative;padding:14px 7px;text-align:center;background:var(--light);border:1px solid #afd0ba;border-radius:7px;font-size:12px;font-weight:700}.step:not(:last-child):after{position:absolute;top:50%;right:-8px;z-index:2;color:var(--green);content:"›";font-size:22px;transform:translateY(-53%)}
+    .metric{display:grid;grid-template-columns:1.35fr 1fr 1fr;gap:1px;margin:21px 0;overflow:hidden;background:var(--rule);border:1px solid var(--rule);border-radius:8px}.metric>*{padding:12px;background:#fff}.metric .head{color:#fff;background:var(--green);font-weight:700}.good{color:#247046;font-weight:750}.muted{color:var(--muted)}figure{margin:30px 0 35px;padding:20px;border:1px solid var(--rule);border-radius:8px}figcaption{margin-top:12px;color:var(--muted);font-size:13px}.bars{display:grid;gap:9px}.bar-row{display:grid;grid-template-columns:130px 1fr 60px;align-items:center;gap:9px;font-size:13px}.bar-track{height:18px;background:#edf0ed;border-radius:9px}.bar-fill{height:100%;background:var(--green);border-radius:9px}
+    footer{margin-top:85px;padding-top:28px;color:var(--muted);border-top:3px solid var(--green);font-size:13px}
+    @media(max-width:960px){nav{position:static;width:auto;padding-bottom:22px}.nav-toggle{display:block}nav .part,nav>a:not(.brand),nav .small{display:none}nav.open .part{display:block}nav.open>a:not(.brand){display:inline-block}nav.open .small{display:block}nav .brand{max-width:290px}main{margin-left:0}article{padding:28px 24px 80px}}@media(max-width:650px){.grid,.flow,.metric{grid-template-columns:1fr}.step:not(:last-child):after{display:none}.bar-row{grid-template-columns:95px 1fr 48px}h2{font-size:28px}table{display:block;overflow:auto}pre{padding-right:45px}}@media print{nav,#progress,.copy,.nav-toggle{display:none!important}main{margin:0}article{max-width:none;padding:0}h2{break-before:page}pre{white-space:pre-wrap;color:#000;background:#eee}}
+  </style>
+</head>
+<body>
+<div id="progress"></div>
+<nav aria-label="Tutorial contents">
+  <a class="brand" href="https://www.expectedparrot.com/"><img src="assets/messick-artwork.png" alt="A survey-taking Expected Parrot inside brackets"><strong>Expected Parrot · Messick</strong></a>
+  <div class="book">Instrument Pretesting<br>with Messick</div>
+  <button class="nav-toggle" type="button" aria-expanded="false">Show tutorial contents</button>
+  <div class="part">Foundations</div><a href="#orientation">1. What is validation?</a><a href="#design">2. Evidence design</a><a href="#install">3. Install and orient</a>
+  <div class="part">Worked example</div><a href="#instrument">4. The trust instrument</a><a href="#project">5. Initialize the project</a><a href="#inspect">6. Static inspection</a><a href="#burden">7. Burden and paths</a><a href="#cognitive">8. Cognitive pretest</a><a href="#behavioral">9. Behavioral pilot</a><a href="#scale">10. Scale evidence</a>
+  <div class="part">Interpretation</div><a href="#revise">11. Issues and revision</a><a href="#human">12. Optional human evidence</a><a href="#validate">13. Evaluate the claim</a><a href="#report">14. Report handoff</a><a href="#agent">15. Coding-agent workflow</a><a href="#checklist">16. Completion checklist</a>
+  <div class="small">Self-contained static tutorial. Messick creates evidence artifacts; EDSL executes model jobs; Humanize fielding remains optional and external.</div>
+</nav>
+<main><article>
+  <header>
+    <img class="hero-art" src="assets/messick-artwork.png" alt="A green survey-taking parrot framed by an E and brackets">
+    <div class="eyebrow">Expected Parrot · A simulation-first worked tutorial</div>
+    <h1>Pretesting a workplace-trust instrument</h1>
+    <p class="dek">Follow one small survey from intended interpretation through static review, cognitive probes, simulated responses, scale diagnostics, revision, and a claim-specific evidence handoff.</p>
+    <div class="meta"><span>Tool: <strong><a href="https://github.com/expectedparrot/messick">Messick</a></strong></span><span>Exchange format: <strong>EDSL .ep</strong></span><span>Example: <strong>workplace trust</strong></span><span>Remote calls shown: <strong>0 required</strong></span></div>
+  </header>
+
+  <section id="orientation">
+    <h2><span class="chapter">01</span> What is being validated?</h2>
+    <p>Validation is not a permanent badge attached to a questionnaire. It is an argument about whether particular evidence supports a particular interpretation and use. The same six items might be adequate for exploratory group description and inadequate for deciding which employee receives an intervention.</p>
+    <div class="grid">
+      <div class="card"><h4>Construct</h4><p>What attribute is the instrument intended to represent? Here: workplace trust.</p></div>
+      <div class="card"><h4>Interpretation</h4><p>What does a score mean? Here: the mean of two scored items is treated as a trust indicator.</p></div>
+      <div class="card"><h4>Population</h4><p>For whom should the interpretation hold? Here: full-time employees.</p></div>
+      <div class="card"><h4>Use</h4><p>What action follows? Here: exploratory description, not an individual decision.</p></div>
+    </div>
+    <div class="callout"><strong>Messick’s governing rule.</strong> It evaluates declared interpretations and uses. A successful process check or simulated pilot must never become “the survey is valid.”</div>
+    <div class="flow"><div class="step">Declare intent</div><div class="step">Inspect structure</div><div class="step">Probe response process</div><div class="step">Analyze behavior</div><div class="step">Bound the claim</div></div>
+  </section>
+
+  <section id="design">
+    <h2><span class="chapter">02</span> Design the evidence before collecting it</h2>
+    <p>Messick uses an evidence ladder. Each tier answers different questions, and stronger-sounding claims require stronger evidence.</p>
+    <table><thead><tr><th>Tier</th><th>What it can reveal</th><th>What it cannot establish</th></tr></thead><tbody>
+      <tr><td>Static</td><td>Broken IDs, options, templates, branch references, scoring, complexity, and estimated burden</td><td>How any respondent will actually interpret or answer</td></tr>
+      <tr><td>Simulated cognitive</td><td>Candidate ambiguities, assumptions, missing options, recall and response-mapping problems</td><td>Observed human cognition</td></tr>
+      <tr><td>Simulated behavioral</td><td>Likely distributions, persona sensitivity, branching, ceiling/floor risk, and scoring mistakes</td><td>Human prevalence, reliability, dimensionality, or subgroup differences</td></tr>
+      <tr><td>Human pilot</td><td>Observed response, timing, missingness, reliability, and dimensionality evidence in the sampled field conditions</td><td>Universal validity or unobserved populations and uses</td></tr>
+    </tbody></table>
+    <div class="callout warn"><strong>This tutorial’s completed path is simulation-first.</strong> The included five-row response fixture exists to exercise analysis reproducibly. It is not empirical evidence about employees, and its perfect internal consistency is deliberately too neat to generalize.</div>
+  </section>
+
+  <section id="install">
+    <h2><span class="chapter">03</span> Install and ask the package what comes next</h2>
+    <p>Install Messick and EDSL together. EDSL supplies durable object packages and the external <code>ep</code> execution CLI; Messick owns instrument-testing state.</p>
+    <pre><code>git clone https://github.com/expectedparrot/messick.git
+cd messick
+python -m pip install -e ".[edsl]"
+
+messick --version
+messick doctor
+messick --help
+messick agent guide</code></pre>
+    <p>All commands emit a versioned JSON envelope by default. Use <code>--human</code> before the command for a compact human rendering. A coding agent should use JSON and treat <code>messick agent next</code> as the workflow control surface.</p>
+    <pre><code>messick --project-dir trust-pretest agent next</code></pre>
+    <pre><code>{
+  "schema_version": "1.0",
+  "status": "error",
+  "errors": [{
+    "code": "PROJECT_NOT_FOUND",
+    "hint": "Run `messick init --title ...`."
+  }]
+}</code></pre>
+  </section>
+
+  <section id="instrument">
+    <h2><span class="chapter">04</span> Meet the instrument</h2>
+    <p>The maintained example under <code>examples/simulation_only/</code> has two five-point trust items followed by free text. The second item is intentionally awkward: “Management does not fail to avoid keeping promises.” Its double negation makes reverse scoring hard to reason about and gives the pretest something real to find.</p>
+    <table><thead><tr><th>ID</th><th>Prompt</th><th>Response</th><th>Role</th></tr></thead><tbody>
+      <tr><td><code>trust_1</code></td><td>I can usually trust management and leadership.</td><td>1–5</td><td>Positive trust item</td></tr>
+      <tr><td><code>trust_2</code></td><td>Management does not fail to avoid keeping promises.</td><td>1–5</td><td>Intended reverse-scored item</td></tr>
+      <tr><td><code>comment</code></td><td>What shaped your answers?</td><td>Open text</td><td>Context, not scale score</td></tr>
+    </tbody></table>
+    <pre><code>{
+  "questions": [
+    {"question_name":"trust_1", "question_type":"multiple_choice",
+     "question_text":"I can usually trust management and leadership.",
+     "question_options":[1,2,3,4,5]},
+    {"question_name":"trust_2", "question_type":"multiple_choice",
+     "question_text":"Management does not fail to avoid keeping promises.",
+     "question_options":[1,2,3,4,5]}
+  ]
+}</code></pre>
+  </section>
+
+  <section id="project">
+    <h2><span class="chapter">05</span> Initialize immutable project state</h2>
+    <p>Create a study directory, import the Survey, and declare the intent and scale. Ordinary wording edits become new revisions; raw Survey and evidence artifacts remain immutable.</p>
+    <pre><code>mkdir trust-pretest
+messick --project-dir trust-pretest init \
+  --title "Workplace trust instrument pretest"
+
+messick --project-dir trust-pretest instrument import \
+  --survey examples/simulation_only/survey.ep \
+  --message "Initial two-item teaching instrument"
+
+messick --project-dir trust-pretest intent add \
+  --input examples/simulation_only/intent.json
+
+messick --project-dir trust-pretest scale add \
+  --input examples/simulation_only/scale.json</code></pre>
+    <p>The import copies the exact Survey into <code>instruments/instrument_v001.ep</code> and records its SHA-256, question order, per-question hashes, and branch-graph hash. Reimporting the identical artifact is idempotent.</p>
+    <pre><code>{
+  "revision_id": "v001",
+  "ordered_question_ids": ["trust_1", "trust_2", "comment"],
+  "parent_revision": null,
+  "status": "draft"
+}</code></pre>
+    <div class="callout stop"><strong>Do not edit <code>.messick/</code>.</strong> It is an append-only ledger for agents and commands. Change human-readable configuration in <code>messick.yaml</code> and create new records through the CLI.</div>
+  </section>
+
+  <section id="inspect">
+    <h2><span class="chapter">06</span> Run deterministic inspection before model calls</h2>
+    <pre><code>messick --project-dir trust-pretest inspect
+messick --project-dir trust-pretest options analyze
+messick --project-dir trust-pretest scoring validate
+messick --project-dir trust-pretest branching analyze
+messick --project-dir trust-pretest branching paths</code></pre>
+    <p>The inspection flags the double negation in <code>trust_2</code>. It does not rewrite the question automatically: the researcher must decide whether the issue reflects the intended construct, a deliberate method choice, or simply bad wording.</p>
+    <pre><code>{
+  "summary": {
+    "question_count": 3,
+    "issue_counts": {"warning": 1}
+  },
+  "artifacts": {
+    "analysis": "analysis/instrument_inspection_0001.json"
+  }
+}</code></pre>
+    <table><thead><tr><th>Finding</th><th>Evidence</th><th>Researcher decision</th></tr></thead><tbody>
+      <tr><td>Possible double negation</td><td><code>not … avoid</code> in <code>trust_2</code></td><td>Revise rather than treating readability as a mechanical failure</td></tr>
+      <tr><td>Reverse scoring declared</td><td><code>trust_2</code>, range 1–5</td><td>Verify direction after wording revision</td></tr>
+      <tr><td>One reachable path</td><td>All three items in sequence</td><td>No branch defect in this tiny instrument</td></tr>
+    </tbody></table>
+  </section>
+
+  <section id="burden">
+    <h2><span class="chapter">07</span> Estimate burden question by question and path by path</h2>
+    <p>Pre-fielding duration is a reproducible estimate, not observed human timing. Messick decomposes each item into reading, comprehension, recall, judgment, response entry, and conditional overhead.</p>
+    <pre><code>messick --project-dir trust-pretest burden analyze
+messick --project-dir trust-pretest burden show --question trust_2</code></pre>
+    <pre><code>{
+  "paths": {
+    "count": 1,
+    "shortest": {"questions":["trust_1","trust_2","comment"], "seconds":47.86},
+    "typical":  {"questions":["trust_1","trust_2","comment"], "seconds":47.86},
+    "longest":  {"questions":["trust_1","trust_2","comment"], "seconds":47.86}
+  },
+  "warning": "Pre-fielding duration is estimated, not observed human completion time."
+}</code></pre>
+    <figure><div class="bars"><div class="bar-row"><span>trust_1</span><div class="bar-track"><div class="bar-fill" style="width:28%"></div></div><strong>≈ 9 s</strong></div><div class="bar-row"><span>trust_2</span><div class="bar-track"><div class="bar-fill" style="width:33%"></div></div><strong>≈ 11 s</strong></div><div class="bar-row"><span>comment</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><strong>≈ 28 s</strong></div></div><figcaption>The open response dominates estimated burden because the default explicitly budgets composition and entry time. Exact components and assumptions live in the JSON artifact.</figcaption></figure>
+    <p>Edit <code>analysis.burden</code> in <code>messick.yaml</code> when the intended population or response mode warrants different assumptions. Every analysis artifact retains the exact configuration snapshot and hash.</p>
+  </section>
+
+  <section id="cognitive">
+    <h2><span class="chapter">08</span> Build a simulated cognitive pretest</h2>
+    <p>A cognitive pretest asks simulated respondents to paraphrase each item, explain an answer process, identify ambiguity and missing options, surface assumptions or sensitivity, distinguish adjacent constructs, and describe difficulty.</p>
+    <pre><code>messick --project-dir trust-pretest pretest plan --mode cognitive
+
+messick --project-dir trust-pretest job generate \
+  --plan plan_0001 \
+  --output edsl_jobs/cognitive_pretest.ep</code></pre>
+    <p><code>job generate</code> creates a real git-backed EDSL Jobs package and immediately loads it again to verify portability. It does not call a model. Its JSON response supplies the exact handoff:</p>
+    <pre><code>ep inspect trust-pretest/edsl_jobs/cognitive_pretest.ep
+ep jobs cost trust-pretest/edsl_jobs/cognitive_pretest.ep
+
+# Only after explicit approval of the model and estimated cost:
+ep run trust-pretest/edsl_jobs/cognitive_pretest.ep \
+  --output trust-pretest/data/results/cognitive_pretest.ep
+
+messick --project-dir trust-pretest results ingest \
+  --plan plan_0001 \
+  --results trust-pretest/data/results/cognitive_pretest.ep</code></pre>
+    <div class="callout stop"><strong>The execution boundary is non-negotiable.</strong> Messick generates and verifies; <code>ep</code> inspects, prices, authenticates, runs, waits, and writes Results. A coding agent must obtain explicit approval before the paid <code>ep run</code> step.</div>
+    <p>After ingestion, analyze the source ID returned by Messick:</p>
+    <pre><code>messick --project-dir trust-pretest pretest analyze --source source_0001</code></pre>
+    <p>Structured probe fields become question-linked candidate findings and issues. Excerpts are bounded and retain the simulated-cognitive source ID. They are hypotheses about possible response processes—not observations of employee cognition.</p>
+  </section>
+
+  <section id="behavioral">
+    <h2><span class="chapter">09</span> Run a small behavioral pilot</h2>
+    <p>The behavioral mode administers the actual Survey to registered EDSL agents. Start small, inspect distributions and branch traversal, then decide whether a larger simulated sample has enough expected value to justify its cost.</p>
+    <pre><code>messick --project-dir trust-pretest pretest plan \
+  --mode behavioral \
+  --agents agents.ep \
+  --models models.ep
+
+messick --project-dir trust-pretest job generate \
+  --plan plan_0002 \
+  --output edsl_jobs/behavioral_pilot.ep
+
+ep inspect trust-pretest/edsl_jobs/behavioral_pilot.ep
+ep jobs cost trust-pretest/edsl_jobs/behavioral_pilot.ep
+# approve, then ep run ...
+messick --project-dir trust-pretest results ingest \
+  --plan plan_0002 --results data/results/behavioral_pilot.ep
+messick --project-dir trust-pretest pretest analyze --source source_0002</code></pre>
+    <p>For an entirely local tour, the repository includes <code>examples/simulation_only/results.ep</code>. It contains five deliberately simple fixture rows:</p>
+    <div class="metric"><div class="head">Item</div><div class="head">Observed fixture range</div><div class="head">Missing</div><div><code>trust_1</code></div><div>1–5</div><div>0%</div><div><code>trust_2</code></div><div>1–5</div><div>0%</div><div><code>comment</code></div><div>5 distinct texts</div><div>0%</div></div>
+    <div class="callout warn"><strong>Do not report fixture distributions as employee estimates.</strong> Their purpose is to test scoring, ingestion, source labeling, and report plumbing without requiring remote inference.</div>
+  </section>
+
+  <section id="scale">
+    <h2><span class="chapter">10</span> Examine scale coherence without overclaiming</h2>
+    <pre><code>messick --project-dir trust-pretest scale analyze \
+  --scale workplace_trust \
+  --source source_0002</code></pre>
+    <p>Messick uses the declared 1–5 bounds, reverse-scores <code>trust_2</code>, and computes reproducible classical diagnostics: item means and standard deviations, Pearson inter-item correlations, corrected item-total correlations, Cronbach’s alpha, alpha if deleted, approximate one-factor omega, exploratory eigenvalues, and first-component loadings.</p>
+    <pre><code>{
+  "scale_id": "workplace_trust",
+  "source_id": "source_0002",
+  "n": 5,
+  "item_count": 2,
+  "cronbach_alpha": 1.0,
+  "mcdonald_omega": 1.0,
+  "warnings": [{"code":"SMALL_SAMPLE"}]
+}</code></pre>
+    <p>The perfect fixture result is a warning sign, not a triumph. There are only five constructed rows, and one reverse-scored item is a deterministic mirror of the other. The correct conclusion is that the scoring implementation behaves as expected on a known fixture.</p>
+    <table><thead><tr><th>Tempting claim</th><th>Defensible claim</th></tr></thead><tbody>
+      <tr><td>“The trust scale has perfect reliability.”</td><td>“The implementation reproduces perfect consistency in a five-row constructed fixture.”</td></tr>
+      <tr><td>“The scale is one-dimensional.”</td><td>“A two-item fixture cannot establish dimensionality in employees.”</td></tr>
+      <tr><td>“The reverse item works.”</td><td>“Reverse scoring is arithmetically correct; comprehension remains challenged by wording.”</td></tr>
+    </tbody></table>
+  </section>
+
+  <section id="revise">
+    <h2><span class="chapter">11</span> Adjudicate the issue and create a new revision</h2>
+    <p>Inspect the issue ledger, record a decision with rationale, revise the EDSL Survey outside the private ledger, and import it as a new immutable revision.</p>
+    <pre><code>messick --project-dir trust-pretest issue list \
+  --question trust_2 --status open
+
+messick --project-dir trust-pretest issue adjudicate issue_0001 \
+  --decision revise \
+  --rationale "Double negation obscures direction and creates avoidable response-mapping risk."
+
+# Edit/export the EDSL Survey as revised_survey.ep, then:
+messick --project-dir trust-pretest instrument import \
+  --survey revised_survey.ep \
+  --message "Replace trust_2 with direct distrust wording"
+
+messick --project-dir trust-pretest instrument compare \
+  --from v001 --to v002
+messick --project-dir trust-pretest burden compare \
+  --from v001 --to v002</code></pre>
+    <p>A clearer replacement might be “Management often breaks its promises.” Whether that wording is construct-relevant, sufficiently specific, and culturally appropriate remains a research judgment. Messick preserves the original issue, decision, rationale, evidence IDs, and resulting revision instead of erasing the history.</p>
+  </section>
+
+  <section id="human">
+    <h2><span class="chapter">12</span> Add human evidence only when the claim warrants it</h2>
+    <p>Human fielding is an optional escalation, not a gate that makes simulation-first pretesting incomplete. Freeze the revision, generate a plan, field through Humanize or another approved process, and ingest the export with sample provenance.</p>
+    <pre><code>messick --project-dir trust-pretest fielding plan --revision v002
+
+# Deployment and participation happen outside Messick, with authorization.
+messick --project-dir trust-pretest responses ingest \
+  --source-type human \
+  --input humanize_export.csv \
+  --instrument-revision v002 \
+  --input-format csv \
+  --sample-description "N=84 full-time US employees; August 2026 pilot"
+
+messick --project-dir trust-pretest source compare \
+  --left source_0002 --right source_0003</code></pre>
+    <p>The comparison artifact displays estimates separately, includes both sample sizes, records administration differences, and sets <code>pooled: false</code> and <code>equivalence_claimed: false</code>. Timestamped human rows produce observed median and percentile durations separately from earlier burden estimates.</p>
+    <div class="callout stop"><strong>Privacy boundary.</strong> Raw human responses are copied immutably under <code>data/human/</code>. Messick records <code>transmitted_to_model: false</code>. Do not expose private open text to model inference without explicit authorization and an approved data-sharing plan.</div>
+  </section>
+
+  <section id="validate">
+    <h2><span class="chapter">13</span> Evaluate the declared claim—not the survey globally</h2>
+    <pre><code>messick --project-dir trust-pretest validation evaluate \
+  --intent trust_mean
+messick --project-dir trust-pretest validate --strict</code></pre>
+    <p>Possible statuses are <code>supported</code>, <code>challenged</code>, <code>inconclusive</code>, <code>not_evaluated</code>, and <code>requires_human_evidence</code>. A consequential use without suitable human evidence receives the last status; that limits the claim but does not fail a completed simulation-only pretest.</p>
+    <pre><code>{
+  "intent_id": "trust_mean",
+  "status": "supported",
+  "reasons": [
+    "Required evidence exists at the declared tier and no blocking challenge remains."
+  ],
+  "limitations": [
+    "Status is bounded to the declared evidence tier; it is not global instrument validity."
+  ]
+}</code></pre>
+    <div class="callout"><strong>Read “supported” with its tier.</strong> For this tutorial it means the simulation-level pretesting goal has the required evidence and no blocking challenge. It does not mean human reliability or score meaning has been established.</div>
+  </section>
+
+  <section id="report">
+    <h2><span class="chapter">14</span> Generate bounded context, then author the narrative</h2>
+    <pre><code>messick --project-dir trust-pretest report context \
+  --output analysis/messick_report_context.json
+messick --project-dir trust-pretest report template \
+  --output analysis/messick_report_template.md</code></pre>
+    <p>The context inventories the current instrument and revision history, intents, scales, evidence sources separated by type, issues, decisions, analyses, validation statuses, limitations, and canonical artifact paths with hashes. Large tables remain in analysis artifacts rather than flooding an agent’s context.</p>
+    <table><thead><tr><th>Messick owns</th><th>The research agent owns</th></tr></thead><tbody>
+      <tr><td>Canonical diagnostics and source labels</td><td>Which findings matter to the audience</td></tr>
+      <tr><td>Hashes, provenance, issues, decisions, and limitations</td><td>Reconciliation of mixed or conflicting evidence</td></tr>
+      <tr><td>Bounded report context and a neutral template</td><td>The final branded Methods, Findings, and Limitations narrative</td></tr>
+    </tbody></table>
+    <p>A proportionate simulation-only conclusion would be: “A deterministic review and simulated cognitive pretest identified a candidate response-mapping problem in the reverse-worded item. The item was rewritten and the scoring pipeline reproduced known fixture behavior. Human interpretation and measurement performance have not been established.”</p>
+  </section>
+
+  <section id="agent">
+    <h2><span class="chapter">15</span> Let a coding agent resume from durable state</h2>
+    <p>The README contains a complete copy-and-paste bootstrap prompt. Once installed, the durable loop is intentionally small:</p>
+    <pre><code>messick --project-dir trust-pretest agent status
+messick --project-dir trust-pretest agent next
+
+# Perform or review the returned action, then ask again:
+messick --project-dir trust-pretest agent next</code></pre>
+    <p>Each recommended action includes a complete working directory, argument array, mutation flag, approval flag, reason, and—when it needs a JSON input file—a schema. The same project state produces the same recommendation. Terminal state is explicit.</p>
+    <div class="grid"><div class="card"><h4>Agent may proceed</h4><p>Read-only inspection, local deterministic analysis, immutable registration requested by the workflow, and report-context generation.</p></div><div class="card"><h4>Agent must stop</h4><p>Paid inference, Humanize deployment, private-data transmission, ambiguous consequential intent, or any meaningful expansion beyond authorization.</p></div></div>
+  </section>
+
+  <section id="checklist">
+    <h2><span class="chapter">16</span> Completion checklist</h2>
+    <ol>
+      <li>The intended construct, interpretation, population, use, evidence tier, and tolerances are explicit.</li>
+      <li>The exact Survey revision and every evidence artifact have immutable paths and hashes.</li>
+      <li>Static structure, branching, options, scoring, complexity, and burden checks were reviewed.</li>
+      <li>Every severe issue is adjudicated with a rationale and evidence IDs.</li>
+      <li>Any model run used the exact Messick-generated Jobs package through <code>ep</code> after approval.</li>
+      <li>Simulated, human, and benchmark sources remain visibly separate.</li>
+      <li>Scale results are interpreted with sample-size and identifiability limitations.</li>
+      <li>Every active intent has a claim-specific status.</li>
+      <li>The report context names unresolved limitations and the optional next evidence with highest expected value.</li>
+      <li>The final narrative avoids global validity language.</li>
+    </ol>
+    <pre><code>messick --project-dir trust-pretest agent status
+messick --project-dir trust-pretest validate --strict
+messick --project-dir trust-pretest report context</code></pre>
+    <div class="callout"><strong>Continue with the package.</strong> Read the <a href="https://github.com/expectedparrot/messick#readme">README</a>, inspect the <a href="cli.html">CLI workflow reference</a>, or give the <a href="agent.html">coding-agent instructions</a> to a fresh session.</div>
+  </section>
+
+  <footer><strong>Messick</strong> is an open-source Expected Parrot package for evidence-aware instrument pretesting. This page is a static local file: no scripts load remote resources, and every workflow boundary remains visible.</footer>
+</article></main>
+<script>
+  const nav=document.querySelector('nav'),toggle=document.querySelector('.nav-toggle');
+  toggle.addEventListener('click',()=>{nav.classList.toggle('open');toggle.setAttribute('aria-expanded',nav.classList.contains('open'))});
+  document.querySelectorAll('pre').forEach(pre=>{const b=document.createElement('button');b.className='copy';b.type='button';b.textContent='Copy';b.addEventListener('click',async()=>{await navigator.clipboard.writeText(pre.innerText.replace(/^Copy\n/,''));b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1200)});pre.appendChild(b)});
+  addEventListener('scroll',()=>{const d=document.documentElement,h=d.scrollHeight-d.clientHeight;document.getElementById('progress').style.width=(h?d.scrollTop/h*100:0)+'%'});
+</script>
+</body>
+</html>

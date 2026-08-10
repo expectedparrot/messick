@@ -16,4 +16,9 @@ def test_static_docs_link_agent_guidance_and_artwork():
     index=(ROOT/"docs/index.html").read_text()
     assert 'src="assets/messick-artwork.png"' in index
     assert 'href="agent.html"' in index
+    assert "Pretesting a workplace-trust instrument" in index
+    assert "messick --project-dir trust-pretest" in index
+    assert "ep jobs cost" in index
+    assert "requires_human_evidence" in index
+    assert index.count("<section") >= 16
     assert "messick agent next" in (ROOT/"docs/agent.html").read_text()
