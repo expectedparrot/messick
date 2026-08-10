@@ -73,7 +73,44 @@ def next_action(store):
     if not revision:
         return cmd("instrument import",["instrument","import","--survey","<survey_path>"],True,"Register the first immutable Survey revision.",{"survey_path":field("string","A readable Survey.ep path.","--survey",fmt="path")},transition="current_instrument_revision is set")
     if not store.records("intents"):
-        return cmd("intent add",["intent","add","--input","<intent_path>"],True,"Define the interpretation and use before evaluating evidence.",{"intent_path":field("string","JSON intent file with construct, interpretation, population, use, and evidence_tier.","--input",fmt="path")},transition="an intent is registered")
+        return cmd(
+            "intent add",
+            ["intent", "add", "--input", "<intent_path>"],
+            True,
+            "Define the interpretation and use before evaluating evidence.",
+            {
+                "intent_path": field(
+                    "string",
+                    "A readable JSON intent file matching content_schema.",
+                    "--input",
+                    fmt="path",
+                    content_schema={
+                        "type": "object",
+                        "required": [
+                            "intent_id",
+                            "construct",
+                            "interpretation",
+                            "population",
+                            "use",
+                            "evidence_tier",
+                        ],
+                        "properties": {
+                            "intent_id": {"type": "string"},
+                            "construct": {"type": "string"},
+                            "interpretation": {"type": "string"},
+                            "population": {"type": "string"},
+                            "use": {"type": "string"},
+                            "evidence_tier": {
+                                "type": "string",
+                                "enum": ["static", "simulation", "human"],
+                            },
+                        },
+                        "additionalProperties": True,
+                    },
+                )
+            },
+            transition="an intent is registered",
+        )
     if not has("instrument_inspection",instrument_revision=revision): return cmd("inspect",["inspect"],True,"Run deterministic instrument checks.",transition="instrument inspection is recorded")
     severe=[x for x in store.records("issues") if x.get("instrument_revision")==revision and x.get("severity") in ("error","severe")]; decided={x.get("issue_id") for x in store.records("decisions")}
     pending=next((x for x in severe if x["issue_id"] not in decided),None)
@@ -110,10 +147,11 @@ def next_action(store):
     if not strict: return cmd("validate strict",["validate","--strict"],True,"Perform the final strict project validation.",transition="strict validation succeeds for the current project revision")
     return {"contract_version":"1.0","terminal":True,"name":"complete","cwd":root,"argv":[],"mutation":False,"spending":False,"approval_required":False,"prerequisites":[],"expected_transition":"none","known_artifacts":{"report_context":str(context),"report_template":str(template)},"reason":"All relevant analyses, handoffs, adjudications, and strict validation are complete."}
 
-def field(typ,description,flag,allowed=None,fmt=None,required=True,conditional=False):
+def field(typ,description,flag,allowed=None,fmt=None,required=True,conditional=False,content_schema=None):
     value={"type":typ,"description":description,"placement":{"kind":"conditional_flag" if conditional else "flag","flag":flag},"required":required}
     if allowed:value["allowed_values"]=allowed
     if fmt:value["format"]=fmt
+    if content_schema:value["content_schema"]=content_schema
     return value
 
 def action(store,name,args,mutation,reason,inputs=None,artifacts=None,transition=None,approval=False,spending=False):

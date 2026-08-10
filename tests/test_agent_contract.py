@@ -24,6 +24,10 @@ def test_agent_next_is_a_portable_complete_static_loop(tmp_path, capsys):
     assert first["input_schema"]["properties"]["survey_path"]["placement"] == {"kind": "flag", "flag": "--survey"}
 
     call(capsys, tmp_path, "instrument", "import", "--survey", str(ex / "survey.ep"))
+    intent_action = call(capsys, tmp_path, "agent", "next")[1]["data"]["recommended_action"]
+    intent_schema = intent_action["input_schema"]["properties"]["intent_path"]["content_schema"]
+    assert "intent_id" in intent_schema["required"]
+    assert intent_schema["properties"]["evidence_tier"]["enum"] == ["static", "simulation", "human"]
     intent = tmp_path / "static-intent.json"
     intent.write_text(json.dumps({"intent_id": "static", "construct": "trust", "interpretation": "score represents trust", "population": "adults", "use": "research", "evidence_tier": "static"}))
     call(capsys, tmp_path, "intent", "add", "--input", str(intent))
