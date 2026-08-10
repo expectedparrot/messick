@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Made `agent next` a portable, versioned workflow contract through relevant analyses, report handoffs, and strict validation.
+- Added explicit non-empty AgentList/ModelList execution designs, an ep-agent-selected required ModelList, bounded respondent pilot defaults, deterministic expected-call counts, and provenance hashes.
+
 ## 0.2.0 - 2026-08-10
 
 - Replaced the 0.1 prototype with an agent-first project and evidence model.

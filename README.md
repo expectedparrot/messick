@@ -103,22 +103,28 @@ mkdir trust-pretest && cd trust-pretest
 messick init --title "Workplace trust pretest"
 messick instrument import --survey ../survey.ep
 messick intent add --input intent.json
-messick validate --strict
 messick agent next
 ```
 
 Commands emit a versioned JSON envelope by default. Add `--human` before the
 command for concise formatted output.
 
-Inference will use this explicit handoff when job generation lands:
+Plan with the ModelList selected by the current ep-agent workflow. Supply an
+explicit AgentList or omit only `--agents` for the documented three-profile
+bounded respondent pilot, then use the exact handoff:
 
 ```text
+messick pretest plan --mode cognitive --agents agents.ep --models models.ep
 messick job generate --plan <plan-id> --output edsl_jobs/pretest.ep
 ep inspect edsl_jobs/pretest.ep
 ep jobs cost edsl_jobs/pretest.ep
 # approve the quoted cost
 ep run edsl_jobs/pretest.ep --output data/results/pretest.ep
 messick results ingest --plan <plan-id> --results data/results/pretest.ep
+messick pretest analyze --source <source-id>
+messick report context
+messick report template
+messick validate --strict
 ```
 
 Humanize is optional. Human responses, when supplied, are recorded as a

@@ -7,6 +7,7 @@ def run(capsys,root,*args):
     code=main(["--project-dir",str(root),*args]); output=json.loads(capsys.readouterr().out); assert code==0,output; return output
 
 def test_simulation_workflow(tmp_path,capsys):
+    from edsl import Model,ModelList
     ex=ROOT/"examples/simulation_only"
     run(capsys,tmp_path,"init","--title","Trust")
     run(capsys,tmp_path,"instrument","import","--survey",str(ex/"survey.ep"))
@@ -14,7 +15,8 @@ def test_simulation_workflow(tmp_path,capsys):
     run(capsys,tmp_path,"scale","add","--input",str(ex/"scale.json"))
     inspected=run(capsys,tmp_path,"inspect"); assert inspected["data"]["summary"]["question_count"]==3
     burden=run(capsys,tmp_path,"burden","analyze"); assert burden["data"]["paths"]["longest"]["seconds"]>0
-    planned=run(capsys,tmp_path,"pretest","plan","--mode","behavioral"); pid=planned["data"]["plan"]["plan_id"]
+    models=tmp_path/"models.ep"; ModelList([Model("test")]).git.save(str(models),message="test model")
+    planned=run(capsys,tmp_path,"pretest","plan","--mode","behavioral","--models",str(models)); pid=planned["data"]["plan"]["plan_id"]
     job=run(capsys,tmp_path,"job","generate","--plan",pid,"--output","edsl_jobs/pilot.ep"); assert job["data"]["handoff"][2]["approval_required"]
     ingested=run(capsys,tmp_path,"results","ingest","--plan",pid,"--results",str(ex/"results.ep")); sid=ingested["data"]["source"]["source_id"]
     analysis=run(capsys,tmp_path,"scale","analyze","--scale","workplace_trust","--source",sid); assert analysis["data"]["cronbach_alpha"] is not None

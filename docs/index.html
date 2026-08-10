@@ -177,7 +177,9 @@ messick --project-dir trust-pretest burden show --question trust_2</code></pre>
   <section id="cognitive">
     <h2><span class="chapter">08</span> Build a simulated cognitive pretest</h2>
     <p>A cognitive pretest asks simulated respondents to paraphrase each item, explain an answer process, identify ambiguity and missing options, surface assumptions or sensitivity, distinguish adjacent constructs, and describe difficulty.</p>
-    <pre><code>messick --project-dir trust-pretest pretest plan --mode cognitive
+    <pre><code>messick --project-dir trust-pretest pretest plan \
+  --mode cognitive \
+  --models models.ep
 
 messick --project-dir trust-pretest job generate \
   --plan plan_0001 \

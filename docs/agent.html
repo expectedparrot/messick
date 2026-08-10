@@ -1,6 +1,7 @@
 <!doctype html><meta charset="utf-8"><title>Messick agent integration</title><h1>Agent integration</h1>
-<p>Use <code>messick agent next</code> as the control surface. It returns one deterministic action with complete argv, mutation and approval flags, a reason, and an input schema when a file is required.</p>
-<p>The agent must use the exact Jobs.ep path for inspect, cost, approval, execution, and subsequent Results ingestion.</p><p><a href="index.html">Documentation home</a></p>
+<p>Use <code>messick agent next</code> as the control surface. Its versioned action has an absolute cwd, complete argv including <code>--project-dir</code>, mutation/spending/approval flags, prerequisites, an expected transition, known artifact IDs and paths, and a structured schema for every unresolved input.</p>
+<p>Cognitive and behavioral plans always have a non-empty respondent/model execution design. A <code>--models ModelList.ep</code> selected through the current ep-agent workflow is required. Supply <code>--agents AgentList.ep</code> to override the bounded pilot default of three varied simulated respondent profiles. The plan records both hashes and the deterministic expected call count.</p>
+<p>The agent must use the exact Jobs.ep path for inspect, cost, approval, execution, and subsequent Results ingestion. Completion requires relevant analyses, post-analysis adjudication, both report handoffs, and successful strict validation.</p><p><a href="index.html">Documentation home</a></p>
 <h2>Copy into a fresh coding-agent session</h2>
 <pre><code>Set up Messick and help me complete an auditable pretest and revision of the
 structured research instrument in this repository.

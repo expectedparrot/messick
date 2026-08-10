@@ -4,7 +4,7 @@ messick instrument import --survey Survey.ep
 messick intent add --input intent.json
 messick inspect
 messick burden analyze
-messick pretest plan --mode cognitive
+messick pretest plan --mode cognitive --agents AgentList.ep --models ModelList.ep
 messick job generate --plan PLAN --output edsl_jobs/pretest.ep
 ep inspect edsl_jobs/pretest.ep
 ep jobs cost edsl_jobs/pretest.ep
@@ -12,4 +12,6 @@ ep run edsl_jobs/pretest.ep --output data/results/pretest.ep
 messick results ingest --plan PLAN --results data/results/pretest.ep
 messick pretest analyze --source SOURCE
 messick validation evaluate --intent INTENT
-messick report context</pre><p><a href="index.html">Documentation home</a></p>
+messick report context
+messick report template
+messick validate --strict</pre><p><code>--models</code> is required and must use the current ep-agent model selection. Omitting <code>--agents</code> selects the documented bounded respondent pilot of three varied profiles. Plans and generated jobs report questions × scenarios × agents × models as the effective call count.</p><p><a href="index.html">Documentation home</a></p>

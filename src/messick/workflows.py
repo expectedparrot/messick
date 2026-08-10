@@ -10,13 +10,36 @@ from .store import digest, now
 def plan(store, mode, agents=None, models=None):
     state=store.load(); revision=state.get("current_instrument_revision")
     if not revision: raise MessickError("NO_INSTRUMENT","A current instrument is required.")
+    if not models: raise MessickError("MODEL_SELECTION_REQUIRED","Pretest plans require an explicit ModelList selected through the ep workflow.","Pass `--models ModelList.ep`.")
     plan_id=store.next_id("plan","runs")
-    agent_record=model_record=None
-    if agents:
-        target,sha=store.copy_artifact(agents,".messick/runs",f"{plan_id}_agents.ep"); agent_record={"path":str(target),"sha256":sha}
-    if models:
-        target,sha=store.copy_artifact(models,".messick/runs",f"{plan_id}_models.ep"); model_record={"path":str(target),"sha256":sha}
-    value={"plan_id":plan_id,"mode":mode,"instrument_revision":revision,"created_at":now(),"status":"planned","prompts":["paraphrase","answer_process","ambiguity","missing_options"] if mode=="cognitive" else [],"agent_list":agent_record,"model_list":model_record}
+    try:
+        with contextlib.redirect_stdout(sys.stderr):
+            from edsl import Agent,AgentList,ModelList
+            if agents:
+                target,sha=store.copy_artifact(agents,".messick/runs",f"{plan_id}_agents.ep")
+            else:
+                target=store.root/".messick/runs"/f"{plan_id}_agents.ep"
+                AgentList([
+                    Agent(traits={"messick_pilot_profile":"careful respondent","reading_style":"deliberate"}),
+                    Agent(traits={"messick_pilot_profile":"time-pressured respondent","reading_style":"quick"}),
+                    Agent(traits={"messick_pilot_profile":"skeptical respondent","reading_style":"literal"}),
+                ]).git.save(str(target),message="Messick bounded pilot respondents")
+                sha=digest(target)
+            agent_list=AgentList.git.load(str(target))
+            agent_record={"path":str(target.relative_to(store.root)),"sha256":sha,"count":len(agent_list),"origin":"explicit" if agents else "bounded-default"}
+            target,sha=store.copy_artifact(models,".messick/runs",f"{plan_id}_models.ep")
+            model_list=ModelList.git.load(str(target))
+            model_record={"path":str(target.relative_to(store.root)),"sha256":sha,"count":len(model_list),"origin":"explicit"}
+    except ImportError as exc: raise MessickError("EDSL_UNAVAILABLE","EDSL is required to validate a pretest execution design.","Install `messick[edsl]`.") from exc
+    except MessickError: raise
+    except Exception as exc: raise MessickError("INVALID_EXECUTION_DESIGN","AgentList or ModelList could not be loaded.",detail=str(exc)) from exc
+    if not agent_record["count"] or not model_record["count"]:
+        raise MessickError("EMPTY_EXECUTION_DESIGN","Pretest plans require at least one agent and one model.",agent_count=agent_record["count"],model_count=model_record["count"])
+    instrument_question_count=len(store.record("instruments",revision,"revision_id").get("ordered_question_ids",[]))
+    question_count=1 if mode=="cognitive" else instrument_question_count
+    scenario_count=instrument_question_count if mode=="cognitive" else 1
+    expected_calls=question_count*scenario_count*agent_record["count"]*model_record["count"]
+    value={"plan_id":plan_id,"mode":mode,"instrument_revision":revision,"created_at":now(),"status":"planned","prompts":["paraphrase","answer_process","ambiguity","missing_options"] if mode=="cognitive" else [],"agent_list":agent_record,"model_list":model_record,"execution_design":{"instrument_question_count":instrument_question_count,"question_count":question_count,"scenario_count":scenario_count,"agent_count":agent_record["count"],"model_count":model_record["count"],"expected_calls":expected_calls}}
     store.put_record("runs",plan_id,value); store.mutate("pretest.planned",{}); return value
 
 def generate_job(store,plan_id,output):
@@ -42,14 +65,16 @@ def generate_job(store,plan_id,output):
                 probe=QuestionFreeText(question_name="messick_cognitive_probe",question_text="""Review this survey question as the described respondent.\n\nQuestion ID: {{ question_id }}\nQuestion: {{ question_text }}\nOptions: {{ question_options }}\n\nReturn JSON with keys paraphrase, answer_process, ambiguity, missing_options, assumptions, sensitivity, construct_distinction, and difficulty. Treat this as a diagnostic hypothesis, not an observation of human cognition.""")
                 scenarios=ScenarioList([Scenario({"question_id":q.question_name,"question_text":q.question_text,"question_options":getattr(q,"question_options",[])}) for q in original.questions])
                 jobs=Survey([probe]).by(scenarios)
-            if p.get("agent_list"): jobs=jobs.by(AgentList.git.load(p["agent_list"]["path"]))
-            if p.get("model_list"): jobs=jobs.by(ModelList.git.load(p["model_list"]["path"]))
+            if p.get("agent_list"): jobs=jobs.by(AgentList.git.load(str(store.root/p["agent_list"]["path"])))
+            if p.get("model_list"): jobs=jobs.by(ModelList.git.load(str(store.root/p["model_list"]["path"])))
             saved=jobs.git.save(str(output),message=f"Messick {p['mode']} pretest {plan_id}")
             Jobs.git.load(str(output))
     except ImportError as exc: raise MessickError("EDSL_UNAVAILABLE","EDSL is required to generate Jobs.ep.","Install `messick[edsl]`.") from exc
     except MessickError: raise
     except Exception as exc: raise MessickError("JOB_GENERATION_FAILED","Could not generate a loadable EDSL Jobs.ep package.",detail=str(exc)) from exc
-    payload={"schema_version":"1.0","owner":"messick","plan_id":plan_id,"mode":p["mode"],"survey":{"path":inst["artifact"],"sha256":inst["sha256"]},"jobs":{"path":str(output),"sha256":digest(output)},"configuration":store.config_snapshot(),"execution":{"owner":"ep","inference_performed":False},"edsl_save":saved}
+    payload={"schema_version":"1.0","owner":"messick","plan_id":plan_id,"mode":p["mode"],"survey":{"path":inst["artifact"],"sha256":inst["sha256"]},"jobs":{"path":str(output),"sha256":digest(output)},"configuration":store.config_snapshot(),"execution":{"owner":"ep","inference_performed":False,**p["execution_design"]},"agent_list":p["agent_list"],"model_list":p["model_list"],"edsl_save":saved}
+    job_record={"job_id":store.next_id("job","reports"),"plan_id":plan_id,"artifact":str(output.relative_to(store.root)),"sha256":payload["jobs"]["sha256"],"agent_list_sha256":p["agent_list"]["sha256"],"model_list_sha256":p["model_list"]["sha256"],"expected_calls":p["execution_design"]["expected_calls"],"created_at":now()}
+    store.put_record("reports",job_record["job_id"],job_record)
     return payload,{"jobs":str(output)},handoff(output)
 
 def handoff(path):
@@ -65,6 +90,8 @@ def ingest(store,source_path,source_type,instrument_revision,input_format=None,p
     source_id=store.next_id("source","sources"); folder="data/human" if source_type=="human" else "data/results"
     suffix="".join(source_path.suffixes) or ".ep"; target,_=store.copy_artifact(source_path,folder,f"{source_id}{suffix}")
     record={"source_id":source_id,"source_type":source_type,"instrument_revision":instrument_revision,"artifact":str(target.relative_to(store.root)),"sha256":sha,"row_count":len(parsed),"sample_description":sample_description,"plan_id":plan_id,"input_format":input_format or source_path.suffix.lstrip("."),"created_at":now(),"comparability_notes":[],"transmitted_to_model":False,"pooled":False}
+    if plan_id:
+        p=store.record("runs",plan_id,"plan_id"); record.update({"agent_list_sha256":p["agent_list"]["sha256"],"model_list_sha256":p["model_list"]["sha256"],"expected_calls":p["execution_design"]["expected_calls"]})
     store.put_record("sources",source_id,record); store.mutate("responses.ingested",{}); return record,True
 
 def evaluate_intent(store,intent_id):
