@@ -4,20 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "messick"
-version = "0.1.0"
-description = "Tiered validation framework for EDSL studies"
+version = "0.2.0"
+description = "Agent-first pretesting and validation for EDSL surveys"
 requires-python = ">=3.11"
-dependencies = [
-    "typer>=0.12",
-    "rich>=13.7",
-    "pyyaml>=6.0",
-    "edsl>=0.1",
-    "pandas>=2.0",
-    "numpy>=1.24"
-]
+dependencies = ["PyYAML>=6,<7"]
+
+[project.optional-dependencies]
+edsl = ["edsl>=0.1"]
+dev = ["pytest>=8", "build>=1"]
 
 [project.scripts]
 messick = "messick.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

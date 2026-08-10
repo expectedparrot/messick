@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["intent_id", "construct", "interpretation", "population", "use", "evidence_tier"],
+  "properties": {
+    "intent_id": {"type": "string", "minLength": 1},
+    "construct": {"type": "string"},
+    "interpretation": {"type": "string"},
+    "population": {"type": "string"},
+    "use": {"type": "string"},
+    "evidence_tier": {"enum": ["static", "simulation", "human"]},
+    "acceptance_criteria": {"type": "object"}
+  }
+}

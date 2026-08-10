@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://messick.local/schemas/envelope.schema.json",
+  "type": "object",
+  "required": ["schema_version", "command", "argv", "status", "project_root", "revision", "data", "artifacts", "warnings", "errors", "next_steps"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "command": {"type": "string"},
+    "argv": {"type": "array", "items": {"type": "string"}},
+    "status": {"enum": ["ok", "error"]},
+    "project_root": {"type": "string"},
+    "revision": {"type": "integer", "minimum": 0},
+    "data": {"type": "object"},
+    "artifacts": {"type": "object"},
+    "warnings": {"type": "array"},
+    "errors": {"type": "array"},
+    "next_steps": {"type": "array"}
+  },
+  "additionalProperties": false
+}

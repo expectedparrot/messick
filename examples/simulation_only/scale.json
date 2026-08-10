@@ -1,0 +1,9 @@
+{
+  "scale_id": "workplace_trust",
+  "instrument_revision": "v001",
+  "items": ["trust_1", "trust_2"],
+  "reverse_scored": ["trust_2"],
+  "range": [1, 5],
+  "missing": "require_complete",
+  "expected_dimensions": 1
+}

@@ -1,0 +1,7 @@
+{
+  "questions": [
+    {"question_name": "trust_1", "question_type": "multiple_choice", "question_text": "I can usually trust management and leadership.", "question_options": [1, 2, 3, 4, 5]},
+    {"question_name": "trust_2", "question_type": "multiple_choice", "question_text": "Management does not fail to avoid keeping promises.", "question_options": [1, 2, 3, 4, 5]},
+    {"question_name": "comment", "question_type": "free_text", "question_text": "What shaped your answers?"}
+  ]
+}

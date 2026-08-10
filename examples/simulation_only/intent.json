@@ -1,0 +1,9 @@
+{
+  "intent_id": "trust_mean",
+  "construct": "workplace trust",
+  "interpretation": "The mean of trust_1 and reverse-scored trust_2 reflects workplace trust.",
+  "population": "Full-time employees",
+  "use": "Exploratory group description",
+  "evidence_tier": "simulation",
+  "status": "active"
+}

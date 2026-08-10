@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Messick documentation</title>
+<style>body{font:17px/1.55 system-ui;max-width:55rem;margin:3rem auto;padding:0 1rem;color:#18212b}code,pre{background:#f2f4f7;padding:.15rem .35rem}pre{padding:1rem;overflow:auto}a{color:#075985}</style></head>
+<body><img src="assets/messick-artwork.png" alt="Messick: a survey-taking parrot between brackets" style="width:100%;height:auto"><h1>Messick</h1><p>Agent-first pretesting and claim-specific validation for EDSL Survey instruments.</p>
+<nav><a href="concepts.html">Concepts</a> · <a href="cli.html">CLI</a> · <a href="agent.html">Agents</a> · <a href="methods.html">Methods</a> · <a href="troubleshooting.html">Troubleshooting</a> · <a href="schemas/envelope.schema.json">Schemas</a></nav>
+<h2 id="concepts">Concepts</h2><p>An instrument has immutable revisions. An intent declares a construct, score interpretation, population, use, evidence tier, and tolerances. Issues connect evidence to auditable decisions.</p>
+<h2 id="cli">CLI</h2><pre>messick init --title TITLE
+messick instrument import --survey Survey.ep
+messick intent add --input intent.json
+messick validate --strict
+messick report context</pre><p>All successful and failed commands use the JSON envelope defined in the specification. Run any command with <code>--help</code> for its exact options.</p>
+<h2 id="agents">Agent integration</h2><p><code>messick agent next</code> returns one deterministic recommended action with its working directory, argument array, mutation and approval flags, reason, and—when needed—an input schema.</p>
+<h2 id="evidence">Evidence boundaries</h2><p>Simulated responses are pretesting evidence, not observations of human measurement. Humanize fielding is optional and external. Paid inference is performed by <code>ep</code>, never Messick.</p>
+</body></html>

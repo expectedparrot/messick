@@ -1,0 +1,17 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: {python-version: "${{ matrix.python }}"}
+      - run: uv sync --extra edsl --extra dev --locked
+      - run: uv run pytest -q
+      - run: uv build
+      - run: uv run messick --version
+      - run: uv run messick doctor

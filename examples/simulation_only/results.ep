@@ -1,0 +1,9 @@
+{
+  "rows": [
+    {"trust_1": 5, "trust_2": 1, "comment": "Leaders followed through."},
+    {"trust_1": 4, "trust_2": 2, "comment": "Communication was clear."},
+    {"trust_1": 3, "trust_2": 3, "comment": "Mixed experiences."},
+    {"trust_1": 2, "trust_2": 4, "comment": "Commitments changed."},
+    {"trust_1": 1, "trust_2": 5, "comment": "Promises were broken."}
+  ]
+}

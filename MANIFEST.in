@@ -1,0 +1,4 @@
+include LICENSE README.md CHANGELOG.md CONTRIBUTING.md SPEC_messick.md uv.lock
+recursive-include docs *
+recursive-include examples *
+recursive-include tests *.py

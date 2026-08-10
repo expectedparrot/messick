@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>Messick CLI</title><h1>CLI workflows</h1>
+<pre>messick init --title TITLE
+messick instrument import --survey Survey.ep
+messick intent add --input intent.json
+messick inspect
+messick burden analyze
+messick pretest plan --mode cognitive
+messick job generate --plan PLAN --output edsl_jobs/pretest.ep
+ep inspect edsl_jobs/pretest.ep
+ep jobs cost edsl_jobs/pretest.ep
+ep run edsl_jobs/pretest.ep --output data/results/pretest.ep
+messick results ingest --plan PLAN --results data/results/pretest.ep
+messick pretest analyze --source SOURCE
+messick validation evaluate --intent INTENT
+messick report context</pre><p><a href="index.html">Documentation home</a></p>

@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>Messick agent integration</title><h1>Agent integration</h1>
+<p>Use <code>messick agent next</code> as the control surface. It returns one deterministic action with complete argv, mutation and approval flags, a reason, and an input schema when a file is required.</p>
+<p>The agent must use the exact Jobs.ep path for inspect, cost, approval, execution, and subsequent Results ingestion.</p><p><a href="index.html">Documentation home</a></p>
+<h2>Copy into a fresh coding-agent session</h2>
+<pre><code>Set up Messick and help me complete an auditable pretest and revision of the
+structured research instrument in this repository.
+
+Install Messick and EDSL as an isolated uv tool, verify that messick and ep
+resolve from that environment, and run messick doctor. Let ep own authentication;
+never display or commit API keys.
+
+Run messick agent guide, then messick agent next. Use agent next after every
+material mutation and treat its JSON envelope as authoritative. Never edit
+.messick/ directly or replace registered artifacts.
+
+Messick builds Jobs.ep but does not execute inference. Use the exact returned
+artifact for ep inspect, ep jobs cost, and ep run. Show me the model, cost, and
+output path and obtain my approval before paid execution.
+
+Keep simulated and human evidence separate. Never call simulated respondents
+human participants, silently pool sources, transmit private human responses to
+a model without approval, or claim that an instrument is globally valid.
+</code></pre>
