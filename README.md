@@ -114,7 +114,9 @@ explicit AgentList or omit only `--agents` for the documented three-profile
 bounded respondent pilot, then use the exact handoff:
 
 ```text
-messick pretest plan --mode cognitive --agents agents.ep --models models.ep
+messick agents create --input agents.json --output edsl_jobs/agents.ep
+messick models create --model <exact-model-id> --output edsl_jobs/models.ep
+messick pretest plan --mode cognitive --agents edsl_jobs/agents.ep --models edsl_jobs/models.ep
 messick job generate --plan <plan-id> --output edsl_jobs/pretest.ep
 ep inspect edsl_jobs/pretest.ep
 ep jobs cost edsl_jobs/pretest.ep
@@ -122,10 +124,15 @@ ep jobs cost edsl_jobs/pretest.ep
 ep run edsl_jobs/pretest.ep --output data/results/pretest.ep
 messick results ingest --plan <plan-id> --results data/results/pretest.ep
 messick pretest analyze --source <source-id>
+messick pretest findings --source <source-id> --limit 20
 messick report context
 messick report template
 messick validate --strict
 ```
+
+`pretest plan` validates both EDSL packages and the non-empty execution matrix
+before staging immutable provenance artifacts. Rejected plans leave no partial
+run state, so a corrected retry safely retains the same next plan ID.
 
 Humanize is optional. Human responses, when supplied, are recorded as a
 separate evidence source and never silently pooled with simulations.

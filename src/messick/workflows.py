@@ -16,30 +16,54 @@ def plan(store, mode, agents=None, models=None):
         with contextlib.redirect_stdout(sys.stderr):
             from edsl import Agent,AgentList,ModelList
             if agents:
-                target,sha=store.copy_artifact(agents,".messick/runs",f"{plan_id}_agents.ep")
+                agent_source=agents.resolve()
+                agent_list=AgentList.git.load(str(agent_source))
+                agent_origin="explicit"
             else:
-                target=store.root/".messick/runs"/f"{plan_id}_agents.ep"
-                AgentList([
+                agent_source=None
+                agent_list=AgentList([
                     Agent(traits={"messick_pilot_profile":"careful respondent","reading_style":"deliberate"}),
                     Agent(traits={"messick_pilot_profile":"time-pressured respondent","reading_style":"quick"}),
                     Agent(traits={"messick_pilot_profile":"skeptical respondent","reading_style":"literal"}),
-                ]).git.save(str(target),message="Messick bounded pilot respondents")
-                sha=digest(target)
-            agent_list=AgentList.git.load(str(target))
-            agent_record={"path":str(target.relative_to(store.root)),"sha256":sha,"count":len(agent_list),"origin":"explicit" if agents else "bounded-default"}
-            target,sha=store.copy_artifact(models,".messick/runs",f"{plan_id}_models.ep")
-            model_list=ModelList.git.load(str(target))
-            model_record={"path":str(target.relative_to(store.root)),"sha256":sha,"count":len(model_list),"origin":"explicit"}
+                ])
+                agent_origin="bounded-default"
+            model_source=models.resolve()
+            model_list=ModelList.git.load(str(model_source))
     except ImportError as exc: raise MessickError("EDSL_UNAVAILABLE","EDSL is required to validate a pretest execution design.","Install `messick[edsl]`.") from exc
     except MessickError: raise
     except Exception as exc: raise MessickError("INVALID_EXECUTION_DESIGN","AgentList or ModelList could not be loaded.",detail=str(exc)) from exc
-    if not agent_record["count"] or not model_record["count"]:
-        raise MessickError("EMPTY_EXECUTION_DESIGN","Pretest plans require at least one agent and one model.",agent_count=agent_record["count"],model_count=model_record["count"])
+    agent_count=len(agent_list); model_count=len(model_list)
+    if not agent_count or not model_count:
+        raise MessickError("EMPTY_EXECUTION_DESIGN","Pretest plans require at least one agent and one model.",agent_count=agent_count,model_count=model_count)
     instrument_question_count=len(store.record("instruments",revision,"revision_id").get("ordered_question_ids",[]))
     question_count=1 if mode=="cognitive" else instrument_question_count
     scenario_count=instrument_question_count if mode=="cognitive" else 1
-    expected_calls=question_count*scenario_count*agent_record["count"]*model_record["count"]
-    value={"plan_id":plan_id,"mode":mode,"instrument_revision":revision,"created_at":now(),"status":"planned","prompts":["paraphrase","answer_process","ambiguity","missing_options"] if mode=="cognitive" else [],"agent_list":agent_record,"model_list":model_record,"execution_design":{"instrument_question_count":instrument_question_count,"question_count":question_count,"scenario_count":scenario_count,"agent_count":agent_record["count"],"model_count":model_record["count"],"expected_calls":expected_calls}}
+    expected_calls=question_count*scenario_count*agent_count*model_count
+    # Commit artifacts only after every input and the complete execution matrix
+    # have validated. A rejected plan must leave no immutable staging debris.
+    created=[]
+    try:
+        agent_target=store.root/".messick/runs"/f"{plan_id}_agents.ep"
+        if agent_source:
+            agent_existed=agent_target.exists()
+            agent_target,agent_sha=store.copy_artifact(agent_source,".messick/runs",agent_target.name)
+            if not agent_existed: created.append(agent_target)
+        else:
+            if agent_target.exists(): raise MessickError("IMMUTABLE_ARTIFACT","An artifact already occupies the target path.",path=str(agent_target))
+            agent_target.parent.mkdir(parents=True,exist_ok=True)
+            agent_list.git.save(str(agent_target),message="Messick bounded pilot respondents")
+            created.append(agent_target); agent_sha=digest(agent_target)
+        model_target=store.root/".messick/runs"/f"{plan_id}_models.ep"
+        model_existed=model_target.exists()
+        model_target,model_sha=store.copy_artifact(model_source,".messick/runs",f"{plan_id}_models.ep")
+        if not model_existed: created.append(model_target)
+    except Exception:
+        for path in created:
+            path.unlink(missing_ok=True)
+        raise
+    agent_record={"path":str(agent_target.relative_to(store.root)),"sha256":agent_sha,"count":agent_count,"origin":agent_origin}
+    model_record={"path":str(model_target.relative_to(store.root)),"sha256":model_sha,"count":model_count,"origin":"explicit"}
+    value={"plan_id":plan_id,"mode":mode,"instrument_revision":revision,"created_at":now(),"status":"planned","prompts":["paraphrase","answer_process","ambiguity","missing_options"] if mode=="cognitive" else [],"agent_list":agent_record,"model_list":model_record,"execution_design":{"instrument_question_count":instrument_question_count,"question_count":question_count,"scenario_count":scenario_count,"agent_count":agent_count,"model_count":model_count,"expected_calls":expected_calls}}
     store.put_record("runs",plan_id,value); store.mutate("pretest.planned",{}); return value
 
 def generate_job(store,plan_id,output):

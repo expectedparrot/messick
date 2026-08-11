@@ -73,6 +73,51 @@ def test_execution_design_is_explicit_and_empty_design_fails(tmp_path, capsys):
     code, result = call(capsys, tmp_path, "pretest", "plan", "--mode", "cognitive", "--agents", str(empty), "--models", str(models), ok=False)
     assert code == 1
     assert result["errors"][0]["code"] == "EMPTY_EXECUTION_DESIGN"
+    assert not list((tmp_path / ".messick/runs").glob("plan_0002_*"))
+
+
+def test_invalid_execution_package_leaves_no_staged_artifacts_and_retry_uses_same_id(tmp_path, capsys):
+    from edsl import Agent, AgentList, Model, ModelList
+
+    ex = ROOT / "examples/simulation_only"
+    call(capsys, tmp_path, "init", "--title", "Transactional planning")
+    call(capsys, tmp_path, "instrument", "import", "--survey", str(ex / "survey.ep"))
+    invalid = tmp_path / "agents.ep.json.gz"
+    invalid.write_bytes(b"not an EDSL package")
+    models = tmp_path / "models.ep"
+    ModelList([Model("test")]).git.save(str(models), message="test model")
+
+    code, result = call(capsys, tmp_path, "pretest", "plan", "--mode", "cognitive", "--agents", str(invalid), "--models", str(models), ok=False)
+    assert code == 1
+    assert result["errors"][0]["code"] == "INVALID_EXECUTION_DESIGN"
+    assert not list((tmp_path / ".messick/runs").glob("plan_0001_*"))
+    assert not (tmp_path / ".messick/runs/plan_0001.json").exists()
+
+    valid = tmp_path / "agents.ep"
+    AgentList([Agent(traits={"profile": "a"})]).git.save(str(valid), message="valid agents")
+    plan = call(capsys, tmp_path, "pretest", "plan", "--mode", "cognitive", "--agents", str(valid), "--models", str(models))[1]["data"]["plan"]
+    assert plan["plan_id"] == "plan_0001"
+
+
+def test_first_class_execution_package_builders(tmp_path, capsys):
+    from edsl import AgentList, ModelList
+
+    call(capsys, tmp_path, "init", "--title", "Package builders")
+    definitions = tmp_path / "agents.json"
+    definitions.write_text(json.dumps({"agents": [
+        {"name": "Ada", "traits": {"age": 34, "region": "West"}},
+        {"name": "Ben", "age": 61, "region": "South"},
+    ]}))
+    agents = tmp_path / "edsl_jobs/agents.ep"
+    models = tmp_path / "edsl_jobs/models.ep"
+
+    agent_result = call(capsys, tmp_path, "agents", "create", "--input", str(definitions), "--output", str(agents))[1]
+    model_result = call(capsys, tmp_path, "models", "create", "--model", "test", "--output", str(models))[1]
+
+    assert agent_result["data"]["agent_list"]["count"] == 2
+    assert model_result["data"]["model_list"]["count"] == 1
+    assert len(AgentList.git.load(str(agents))) == 2
+    assert len(ModelList.git.load(str(models))) == 1
 
 
 def test_bounded_default_agents_require_an_explicit_model(tmp_path, capsys):
@@ -123,3 +168,7 @@ def test_agent_next_completes_simulated_results_analysis_loop(tmp_path, capsys):
         "scale analyze", "validation evaluate", "report context", "report template",
         "validate strict", "complete",
     ]
+    findings = call(capsys, tmp_path, "pretest", "findings", "--limit", "1")[1]["data"]
+    assert findings["returned"] == 1
+    assert findings["total"] >= 1
+    assert findings["has_more"] is (findings["total"] > 1)

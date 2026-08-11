@@ -1,6 +1,6 @@
 """Strict JSON-first command line interface."""
 from __future__ import annotations
-import argparse,importlib.util,json,shutil,sys
+import argparse,contextlib,importlib.util,json,shutil,sys
 from pathlib import Path
 from uuid import uuid4
 from . import __version__
@@ -31,6 +31,9 @@ def parser():
     b=command(sub,"burden"); b.add_parser("analyze"); x=b.add_parser("show"); x.add_argument("--question",required=True); x=b.add_parser("compare"); x.add_argument("--from",dest="from_revision",required=True); x.add_argument("--to",dest="to_revision",required=True)
     o=command(sub,"options"); o.add_parser("analyze"); s=command(sub,"scoring"); s.add_parser("validate")
     q=command(sub,"pretest"); x=q.add_parser("plan"); x.add_argument("--mode",choices=("cognitive","behavioral"),required=True); x.add_argument("--agents",type=Path); x.add_argument("--models",type=Path); x=q.add_parser("analyze"); x.add_argument("--source",required=True)
+    x=q.add_parser("findings"); x.add_argument("--source"); x.add_argument("--question"); x.add_argument("--limit",type=int,default=20); x.add_argument("--offset",type=int,default=0)
+    q=command(sub,"agents"); x=q.add_parser("create"); x.add_argument("--input",type=Path,required=True); x.add_argument("--output",type=Path,required=True)
+    q=command(sub,"models"); x=q.add_parser("create"); x.add_argument("--model",action="append",required=True); x.add_argument("--output",type=Path,required=True)
     q=command(sub,"job"); x=q.add_parser("generate"); x.add_argument("--plan",required=True); x.add_argument("--output",type=Path,required=True)
     q=command(sub,"results"); x=q.add_parser("ingest"); x.add_argument("--plan",required=True); x.add_argument("--results",type=Path,required=True)
     q=command(sub,"fielding"); x=q.add_parser("plan"); x.add_argument("--revision",required=True)
@@ -125,7 +128,12 @@ def next_action(store):
     needs_simulation=any(x.get("evidence_tier")!="static" for x in store.records("intents"))
     runs=[x for x in store.records("runs") if x.get("instrument_revision")==revision]
     if needs_simulation and not runs:
-        return cmd("pretest plan",["pretest","plan","--mode","cognitive","--models","<models_path>"],True,"Create a cognitive execution design using the model selected by ep-agent. Add --agents only to override the documented three-profile respondent pilot.",{"models_path":field("string","ModelList.ep produced from the current ep-agent model selection.","--models",fmt="path"),"agents_path":field("string","Optional AgentList.ep overriding the bounded respondent pilot.","--agents",fmt="path",required=False,conditional=True)},transition="a pretest plan with a non-empty execution matrix is recorded")
+        result=cmd("pretest plan",["pretest","plan","--mode","cognitive","--models","<models_path>"],True,"Create a cognitive execution design using the model selected by ep-agent. Add --agents only to override the documented three-profile respondent pilot.",{"models_path":field("string","ModelList.ep created with `messick models create`.","--models",fmt="path"),"agents_path":field("string","Optional AgentList.ep created with `messick agents create` to override the bounded respondent pilot.","--agents",fmt="path",required=False,conditional=True)},transition="a pretest plan with a non-empty execution matrix is recorded")
+        result["preparation_commands"]=[
+            {"argv":["messick","--project-dir",root,"models","create","--model","<model_name>","--output","edsl_jobs/models.ep"],"input":"the exact model identifier selected through ep"},
+            {"argv":["messick","--project-dir",root,"agents","create","--input","<agents_json>","--output","edsl_jobs/agents.ep"],"input":"optional JSON respondent definitions"},
+        ]
+        return result
     if needs_simulation:
         run=runs[-1]; jobs=next((x for x in store.records("reports") if x.get("plan_id")==run["plan_id"] and x.get("job_id")),None)
         if not jobs:
@@ -159,11 +167,70 @@ def action(store,name,args,mutation,reason,inputs=None,artifacts=None,transition
     required=[k for k,v in (inputs or {}).items() if v.get("required",True)]
     return {"contract_version":"1.0","name":name,"cwd":str(store.root),"argv":argv,"mutation":mutation,"spending":spending,"approval_required":approval,"reason":reason,"input_schema":{"type":"object","required":required,"properties":inputs or {}},"prerequisites":[],"expected_transition":transition or "command completes","known_artifacts":artifacts or {}}
 
+def package_output(store,path):
+    output=absout(store,path)
+    if output.suffix != ".ep": raise MessickError("INVALID_OUTPUT","Output must be a durable .ep package.",path=str(output))
+    if output.exists(): raise MessickError("IMMUTABLE_ARTIFACT","An artifact already occupies the target path.",path=str(output))
+    output.parent.mkdir(parents=True,exist_ok=True)
+    return output
+
+def create_agents_package(store,source,output):
+    try: payload=json.loads(source.read_text(encoding="utf-8"))
+    except (OSError,json.JSONDecodeError) as exc: raise MessickError("INVALID_INPUT",f"Cannot read agent JSON: {exc}",path=str(source)) from exc
+    values=payload.get("agents") if isinstance(payload,dict) else payload
+    if not isinstance(values,list) or not values: raise MessickError("INVALID_INPUT","Agent input must be a non-empty JSON list or an object with a non-empty `agents` list.")
+    try:
+        with contextlib.redirect_stdout(sys.stderr):
+            from edsl import Agent,AgentList
+            agents=[]
+            for index,value in enumerate(values):
+                if not isinstance(value,dict): raise MessickError("INVALID_INPUT","Each agent definition must be a JSON object.",index=index)
+                name=value.get("name"); traits=value.get("traits")
+                if traits is None: traits={key:item for key,item in value.items() if key != "name"}
+                if not isinstance(traits,dict): raise MessickError("INVALID_INPUT","Agent `traits` must be an object.",index=index)
+                agents.append(Agent(name=name,traits=traits) if name else Agent(traits=traits))
+            package=AgentList(agents); target=package_output(store,output)
+            saved=package.git.save(str(target),message="Messick respondent design")
+            AgentList.git.load(str(target))
+    except ImportError as exc: raise MessickError("EDSL_UNAVAILABLE","EDSL is required to create AgentList.ep.","Install `messick[edsl]`.") from exc
+    except MessickError: raise
+    except Exception as exc: raise MessickError("PACKAGE_CREATION_FAILED","Could not create a loadable AgentList.ep package.",detail=str(exc)) from exc
+    return {"path":str(target),"count":len(package),"sha256":digest(target),"edsl_save":saved}
+
+def create_models_package(store,names,output):
+    try:
+        with contextlib.redirect_stdout(sys.stderr):
+            from edsl import Model,ModelList
+            package=ModelList([Model(name) for name in names]); target=package_output(store,output)
+            saved=package.git.save(str(target),message="Messick model selection")
+            ModelList.git.load(str(target))
+    except ImportError as exc: raise MessickError("EDSL_UNAVAILABLE","EDSL is required to create ModelList.ep.","Install `messick[edsl]`.") from exc
+    except MessickError: raise
+    except Exception as exc: raise MessickError("PACKAGE_CREATION_FAILED","Could not create a loadable ModelList.ep package.",detail=str(exc)) from exc
+    return {"path":str(target),"count":len(package),"sha256":digest(target),"edsl_save":saved}
+
+def bounded_pretest_findings(store,source_id=None,question=None,limit=20,offset=0):
+    if limit < 1 or limit > 100: raise MessickError("INVALID_LIMIT","Limit must be between 1 and 100.",limit=limit)
+    if offset < 0: raise MessickError("INVALID_OFFSET","Offset must be non-negative.",offset=offset)
+    records=[x for x in store.records("analyses") if x.get("analysis_type")=="pretest"]
+    if source_id: records=[x for x in records if x.get("source_id")==source_id]
+    if not records: raise MessickError("PRETEST_ANALYSIS_NOT_FOUND","No matching pretest analysis exists.",source_id=source_id)
+    record=records[-1]
+    payload=json.loads((store.root/record["artifact"]).read_text(encoding="utf-8"))
+    findings=payload.get("normalized_cognitive_findings",[])
+    if question is not None: findings=[x for x in findings if x.get("question_id")==question]
+    total=len(findings); page=findings[offset:offset+limit]
+    return {"analysis_id":record["analysis_id"],"source_id":record.get("source_id"),"question":question,"offset":offset,"limit":limit,"returned":len(page),"total":total,"has_more":offset+len(page)<total,"findings":page,"claims_boundary":payload.get("claims_boundary")}
+
 def execute(a,s):
     if a.area=="init": return s.init(a.title),{},[]
     if a.area=="doctor":
         edsl_available=importlib.util.find_spec("edsl") is not None; checks={"python":{"ok":sys.version_info>=(3,11)},"edsl":{"ok":edsl_available,"optional_for_static_review":True},"ep":{"ok":shutil.which("ep") is not None},"project":{"ok":s.exists},"schema":{"ok":not s.exists or s.load().get("schema_version")==1},"humanize":{"ok":shutil.which("humanize") is not None,"optional":True}}; warnings=[] if checks["ep"]["ok"] else [{"code":"EP_NOT_FOUND","message":"`ep` is unavailable."}]; return {"checks":checks},{},warnings
     s.require(); state=s.load()
+    if a.area=="agents":
+        package=create_agents_package(s,a.input,a.output); return {"agent_list":package},{"agent_list":package["path"]},[]
+    if a.area=="models":
+        package=create_models_package(s,a.model,a.output); return {"model_list":package},{"model_list":package["path"]},[]
     if a.area=="validate":
         problems=[]
         if not state.get("current_instrument_revision"):problems.append({"code":"NO_INSTRUMENT","message":"No current instrument."})
@@ -231,6 +298,7 @@ def execute(a,s):
         comparison={"scale_id":a.scale,"sources":values,"pooled":False}; rec,path=artifact(s,"scale_comparison",comparison); s.mutate("scales.compared",{}); return {"scale_id":a.scale,"source_count":len(values),"pooled":False},{"analysis":str(path)},[]
     if a.area=="pretest":
         if a.action=="plan":return {"plan":plan(s,a.mode,a.agents,a.models)},{},[]
+        if a.action=="findings":return bounded_pretest_findings(s,a.source,a.question,a.limit,a.offset),{},[]
         src,rs=source_rows(s,a.source); result=response_diagnostics(rs,declared_bounds(s,src["instrument_revision"])); normalized=[]
         if src["source_type"]=="simulated-cognitive":
             for row in rs:
@@ -258,7 +326,7 @@ def execute(a,s):
         ls,lr=source_rows(s,a.left); rs,rr=source_rows(s,a.right); result=compare_rows(lr,rr); result.update({"left":{"source_id":a.left,"source_type":ls["source_type"],"sample_description":ls["sample_description"]},"right":{"source_id":a.right,"source_type":rs["source_type"],"sample_description":rs["sample_description"]},"comparability_notes":ls.get("comparability_notes",[])+rs.get("comparability_notes",[])}); rec,path=artifact(s,"source_comparison",result); s.mutate("sources.compared",{}); return {"left":result["left"],"right":result["right"],"left_n":result["left_n"],"right_n":result["right_n"],"item_count":len(result["items"]),"pooled":False,"equivalence_claimed":False},{"analysis":str(path)},[]
     if a.area=="validation":return {"validation":evaluate_intent(s,a.intent)},{},[]
     if a.area=="agent":
-        if a.action=="guide":return {"principles":["Validate interpretations and uses, never instruments globally.","Keep simulated and human evidence distinct.","Execute inference only through ep."],"control_surface":"messick agent next"},{},[]
+        if a.action=="guide":return {"principles":["Validate interpretations and uses, never instruments globally.","Keep simulated and human evidence distinct.","Execute inference only through ep."],"control_surface":"messick agent next","package_builders":["messick agents create","messick models create"],"bounded_review":"messick pretest findings --limit 20"},{},[]
         if a.action=="next":return {"recommended_action":next_action(s)},{},[]
         if a.action=="status":return {"project":state,"counts":{k:len(s.records(k)) for k in ("instruments","intents","scales","sources","issues","decisions","analyses","validations")}},{},[]
         if a.action=="history":return {"events":s.records("events")},{},[]

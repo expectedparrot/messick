@@ -177,14 +177,23 @@ messick --project-dir trust-pretest burden show --question trust_2</code></pre>
   <section id="cognitive">
     <h2><span class="chapter">08</span> Build a simulated cognitive pretest</h2>
     <p>A cognitive pretest asks simulated respondents to paraphrase each item, explain an answer process, identify ambiguity and missing options, surface assumptions or sensitivity, distinguish adjacent constructs, and describe difficulty.</p>
-    <pre><code>messick --project-dir trust-pretest pretest plan \
+    <pre><code>messick --project-dir trust-pretest agents create \
+  --input agents.json \
+  --output edsl_jobs/agents.ep
+
+messick --project-dir trust-pretest models create \
+  --model &lt;exact-model-id&gt; \
+  --output edsl_jobs/models.ep
+
+messick --project-dir trust-pretest pretest plan \
   --mode cognitive \
-  --models models.ep
+  --agents edsl_jobs/agents.ep \
+  --models edsl_jobs/models.ep
 
 messick --project-dir trust-pretest job generate \
   --plan plan_0001 \
   --output edsl_jobs/cognitive_pretest.ep</code></pre>
-    <p><code>job generate</code> creates a real git-backed EDSL Jobs package and immediately loads it again to verify portability. It does not call a model. Its JSON response supplies the exact handoff:</p>
+    <p>The package builders create loadable git-backed EDSL artifacts, so agents do not need to guess serialization formats. <code>pretest plan</code> validates the complete execution design before staging immutable artifacts; a rejected plan leaves no partial run state. <code>job generate</code> creates a real git-backed EDSL Jobs package and immediately loads it again to verify portability. It does not call a model. Its JSON response supplies the exact handoff:</p>
     <pre><code>ep inspect trust-pretest/edsl_jobs/cognitive_pretest.ep
 ep jobs cost trust-pretest/edsl_jobs/cognitive_pretest.ep
 
@@ -197,8 +206,17 @@ messick --project-dir trust-pretest results ingest \
   --results trust-pretest/data/results/cognitive_pretest.ep</code></pre>
     <div class="callout stop"><strong>The execution boundary is non-negotiable.</strong> Messick generates and verifies; <code>ep</code> inspects, prices, authenticates, runs, waits, and writes Results. A coding agent must obtain explicit approval before the paid <code>ep run</code> step.</div>
     <p>After ingestion, analyze the source ID returned by Messick:</p>
-    <pre><code>messick --project-dir trust-pretest pretest analyze --source source_0001</code></pre>
-    <p>Structured probe fields become question-linked candidate findings and issues. Excerpts are bounded and retain the simulated-cognitive source ID. They are hypotheses about possible response processes—not observations of employee cognition.</p>
+    <pre><code>messick --project-dir trust-pretest pretest analyze --source source_0001
+messick --project-dir trust-pretest pretest findings \
+  --source source_0001 \
+  --limit 20
+
+# Focus without loading the full analysis artifact:
+messick --project-dir trust-pretest pretest findings \
+  --source source_0001 \
+  --question trust_2 \
+  --limit 10</code></pre>
+    <p>Structured probe fields become question-linked candidate findings and issues. The bounded findings command returns pagination metadata and source labels without requiring an agent to load the underlying analysis JSON. Excerpts remain diagnostic hypotheses about possible response processes—not observations of employee cognition.</p>
   </section>
 
   <section id="behavioral">
