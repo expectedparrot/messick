@@ -91,7 +91,11 @@ class Store:
                 return record, False
         number = len(existing) + 1; revision_id = f"v{number:03d}"
         target = self.root / "instruments" / f"instrument_{revision_id}.ep"
-        shutil.copyfile(source, target)
+        # A revision builder may write directly to the package's next canonical
+        # path. Register that artifact in place instead of asking shutil to copy
+        # a file onto itself (which raises SameFileError).
+        if source != target.resolve():
+            shutil.copyfile(source, target)
         question_ids=[]; question_hashes={}; branching_graph_hash=None
         try:
             from .artifacts import survey
@@ -100,7 +104,10 @@ class Store:
             branching_graph_hash=hashlib.sha256(json.dumps(normalized["rules"],sort_keys=True).encode()).hexdigest()
         except MessickError:
             pass
-        record = {"instrument_id": self.load().get("instrument_id") or str(uuid4()), "revision_id": revision_id, "parent_revision": self.load()["current_instrument_revision"], "artifact": str(target.relative_to(self.root)), "sha256": sha, "ordered_question_ids":question_ids,"question_hashes":question_hashes,"branching_graph_hash":branching_graph_hash,"message": message, "created_at": now(), "status": "draft"}
+        parent_revision=self.load()["current_instrument_revision"]
+        parent_issue_ids={x["issue_id"] for x in self.records("issues") if x.get("instrument_revision")==parent_revision}
+        decision_ids=[x["decision_id"] for x in self.records("decisions") if x.get("issue_id") in parent_issue_ids and x.get("action") in ("revise","remove","rescore","reorder")]
+        record = {"instrument_id": self.load().get("instrument_id") or str(uuid4()), "revision_id": revision_id, "parent_revision": parent_revision, "decision_ids":decision_ids,"artifact": str(target.relative_to(self.root)), "sha256": sha, "ordered_question_ids":question_ids,"question_hashes":question_hashes,"branching_graph_hash":branching_graph_hash,"message": message, "created_at": now(), "status": "draft"}
         self.put_record("instruments", revision_id, record)
         self.mutate("instrument.imported", {"instrument_id": record["instrument_id"], "current_instrument_revision": revision_id})
         return record, True

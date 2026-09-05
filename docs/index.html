@@ -311,10 +311,10 @@ messick --project-dir trust-pretest source compare \
     <pre><code>messick --project-dir trust-pretest validation evaluate \
   --intent trust_mean
 messick --project-dir trust-pretest validate --strict</code></pre>
-    <p>Possible statuses are <code>supported</code>, <code>challenged</code>, <code>inconclusive</code>, <code>not_evaluated</code>, and <code>requires_human_evidence</code>. A consequential use without suitable human evidence receives the last status; that limits the claim but does not fail a completed simulation-only pretest.</p>
+    <p>Possible statuses are <code>supported</code>, <code>provisional</code>, <code>challenged</code>, <code>inconclusive</code>, <code>not_evaluated</code>, and <code>requires_human_evidence</code>. Simulation-only evidence is provisional even after material findings are adjudicated; it cannot establish authentic human responses or field readiness. A consequential use without suitable human evidence receives <code>requires_human_evidence</code>.</p>
     <pre><code>{
   "intent_id": "trust_mean",
-  "status": "supported",
+  "status": "provisional",
   "reasons": [
     "Required evidence exists at the declared tier and no blocking challenge remains."
   ],
@@ -322,7 +322,7 @@ messick --project-dir trust-pretest validate --strict</code></pre>
     "Status is bounded to the declared evidence tier; it is not global instrument validity."
   ]
 }</code></pre>
-    <div class="callout"><strong>Read “supported” with its tier.</strong> For this tutorial it means the simulation-level pretesting goal has the required evidence and no blocking challenge. It does not mean human reliability or score meaning has been established.</div>
+    <div class="callout"><strong>Keep the claim provisional.</strong> Completing simulation-level diagnostics does not establish human reliability, response authenticity, score meaning, or field readiness.</div>
   </section>
 
   <section id="report">

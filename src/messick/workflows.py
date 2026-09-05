@@ -131,9 +131,9 @@ def evaluate_intent(store,intent_id):
     elif tier=="simulation" and not simulated: status="not_evaluated"; reasons.append("No simulated evidence exists for the current revision.")
     elif tier=="static" and not store.records("analyses"): status="not_evaluated"; reasons.append("No deterministic analysis exists for the current revision.")
     else:
-        decisions={x["issue_id"] for x in store.records("decisions")}; severe=[x for x in store.records("issues") if x.get("instrument_revision")==store.load().get("current_instrument_revision") and x.get("severity") in ("error","severe") and x["issue_id"] not in decisions]
+        decisions={x["issue_id"] for x in store.records("decisions")}; severe=[x for x in store.records("issues") if x.get("instrument_revision")==store.load().get("current_instrument_revision") and (x.get("severity") in ("error","severe") or (x.get("severity")=="warning" and x.get("evidence_source_ids"))) and x["issue_id"] not in decisions]
         criteria=intent.get("acceptance_criteria",{}); failures=[]
-        if severe: failures.append(f"{len(severe)} severe issue(s) remain unadjudicated")
+        if severe: failures.append(f"{len(severe)} material issue(s) remain unadjudicated")
         minimum=criteria.get("minimum_sample_size") or criteria.get("min_n")
         eligible=human if tier=="human" else simulated if tier=="simulation" else relevant
         if minimum is not None and (not eligible or max(x["row_count"] for x in eligible)<minimum): failures.append(f"minimum sample size {minimum} was not met")
@@ -148,6 +148,9 @@ def evaluate_intent(store,intent_id):
             if not alphas: status="inconclusive"; reasons.append("The declared alpha criterion has not been evaluated.")
             elif max(alphas)<minimum_alpha: failures.append(f"minimum alpha {minimum_alpha} was not met")
         if failures: status="challenged"; reasons.extend(failures)
-        elif not reasons: status="supported"; reasons.append("Required evidence exists at the declared tier and no blocking challenge remains.")
-    result={"validation_id":store.next_id("validation","validations"),"intent_id":intent_id,"status":status,"evidence_source_ids":[x["source_id"] for x in relevant],"reasons":reasons,"limitations":["Status is bounded to the declared evidence tier; it is not global instrument validity."],"created_at":now()}
+        elif tier=="simulation" and not human:
+            status="provisional"
+            reasons.append("Simulation diagnostics completed and all material findings were adjudicated; human response authenticity and field readiness remain untested.")
+        elif not reasons: status="supported"; reasons.append("Required evidence exists at the declared tier and all material findings were adjudicated.")
+    result={"validation_id":store.next_id("validation","validations"),"intent_id":intent_id,"instrument_revision":store.load().get("current_instrument_revision"),"status":status,"evidence_source_ids":[x["source_id"] for x in relevant],"reasons":reasons,"limitations":["Status is bounded to the declared evidence tier; it is not global instrument validity."],"created_at":now()}
     store.put_record("validations",result["validation_id"],result); store.mutate("validation.evaluated",{}); return result

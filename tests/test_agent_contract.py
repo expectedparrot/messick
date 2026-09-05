@@ -41,7 +41,7 @@ def test_agent_next_is_a_portable_complete_static_loop(tmp_path, capsys):
         assert action["cwd"] == str(tmp_path.resolve())
         assert action["argv"][:3] == ["messick", "--project-dir", str(tmp_path.resolve())]
         call(capsys, tmp_path, *action["argv"][3:])
-    assert names == ["inspect", "burden analyze", "options analyze", "validation evaluate", "report context", "report template", "validate strict", "complete"]
+    assert names == ["inspect", "burden analyze", "options analyze", "validation evaluate", "validate strict", "report context", "report template", "complete"]
 
 
 def test_execution_design_is_explicit_and_empty_design_fails(tmp_path, capsys):
@@ -165,10 +165,37 @@ def test_agent_next_completes_simulated_results_analysis_loop(tmp_path, capsys):
     assert names == [
         "inspect", "burden analyze", "options analyze", "scoring validate",
         "pretest plan", "job generate", "results ingest", "pretest analyze",
-        "scale analyze", "validation evaluate", "report context", "report template",
-        "validate strict", "complete",
+        "scale analyze", "validation evaluate", "validate strict", "report context",
+        "report template", "complete",
     ]
     findings = call(capsys, tmp_path, "pretest", "findings", "--limit", "1")[1]["data"]
     assert findings["returned"] == 1
     assert findings["total"] >= 1
     assert findings["has_more"] is (findings["total"] > 1)
+
+
+def test_material_finding_blocks_support_and_routes_to_revision(tmp_path, capsys):
+    from edsl import Model, ModelList
+
+    ex = ROOT / "examples/simulation_only"
+    call(capsys, tmp_path, "init", "--title", "Revision loop")
+    call(capsys, tmp_path, "instrument", "import", "--survey", str(ex / "survey.ep"))
+    call(capsys, tmp_path, "intent", "add", "--input", str(ex / "intent.json"))
+    models = tmp_path / "models.ep"
+    ModelList([Model("test")]).git.save(str(models), message="selected model")
+    plan = call(capsys, tmp_path, "pretest", "plan", "--mode", "behavioral", "--models", str(models))[1]["data"]["plan"]
+    source = call(capsys, tmp_path, "results", "ingest", "--plan", plan["plan_id"], "--results", str(ex / "results.ep"))[1]["data"]["source"]
+    issue_path = tmp_path / "material.json"
+    issue_path.write_text(json.dumps({"issue_id": "material_1", "instrument_revision": "v001", "question_id": "trust_1", "category": "ambiguity", "severity": "warning", "description": "Term is ambiguous in the pretest.", "evidence_source_ids": [source["source_id"]]}))
+    call(capsys, tmp_path, "issue", "add", "--input", str(issue_path))
+
+    validation = call(capsys, tmp_path, "validation", "evaluate", "--intent", "trust_mean")[1]["data"]["validation"]
+    assert validation["status"] == "challenged"
+    assert "material issue" in validation["reasons"][0]
+    call(capsys, tmp_path, "inspect")
+    action = call(capsys, tmp_path, "agent", "next")[1]["data"]["recommended_action"]
+    assert action["name"] == "issue adjudicate"
+    call(capsys, tmp_path, "issue", "adjudicate", "material_1", "--decision", "revise", "--rationale", "Clarify the item wording.")
+    action = call(capsys, tmp_path, "agent", "next")[1]["data"]["recommended_action"]
+    assert action["name"] == "instrument import revision"
+    assert action["known_artifacts"]["parent_revision"] == "v001"

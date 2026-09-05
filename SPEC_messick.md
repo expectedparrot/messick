@@ -726,6 +726,8 @@ Simulation-versus-human comparison must:
 Validation is evaluated per intent and against its declared evidence tier:
 
 - `supported`: required evidence exists and no blocking challenge remains;
+- `provisional`: simulation diagnostics are complete and material findings are
+  adjudicated, but human response authenticity and field readiness are untested;
 - `challenged`: evidence conflicts with the intended interpretation or use;
 - `inconclusive`: available evidence at the selected tier is insufficient or
   mixed;

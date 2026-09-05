@@ -20,7 +20,7 @@ def test_simulation_workflow(tmp_path,capsys):
     job=run(capsys,tmp_path,"job","generate","--plan",pid,"--output","edsl_jobs/pilot.ep"); assert job["data"]["handoff"][2]["approval_required"]
     ingested=run(capsys,tmp_path,"results","ingest","--plan",pid,"--results",str(ex/"results.ep")); sid=ingested["data"]["source"]["source_id"]
     analysis=run(capsys,tmp_path,"scale","analyze","--scale","workplace_trust","--source",sid); assert analysis["data"]["cronbach_alpha"] is not None
-    validation=run(capsys,tmp_path,"validation","evaluate","--intent","trust_mean"); assert validation["data"]["validation"]["status"]=="supported"
+    validation=run(capsys,tmp_path,"validation","evaluate","--intent","trust_mean"); assert validation["data"]["validation"]["status"]=="provisional"
     report=run(capsys,tmp_path,"report","context"); assert Path(report["artifacts"]["report_context"]).is_file()
 
 def test_human_sources_are_not_pooled(tmp_path,capsys):

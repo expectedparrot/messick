@@ -17,6 +17,19 @@ def test_project_flow(tmp_path, capsys):
     code,out=call(capsys,"--project-dir",str(tmp_path),"agent","next")
     assert out["data"]["recommended_action"]["name"]=="intent add"
 
+def test_import_registers_artifact_already_at_canonical_target(tmp_path, capsys):
+    call(capsys,"--project-dir",str(tmp_path),"init","--title","Same path")
+    first=tmp_path/"first.ep"; first.write_text("first")
+    call(capsys,"--project-dir",str(tmp_path),"instrument","import","--survey",str(first))
+    second=tmp_path/"instruments/instrument_v002.ep"; second.write_text("second")
+    code,out=call(capsys,"--project-dir",str(tmp_path),"instrument","import","--survey",str(second),"--message","adjudicated revision")
+    assert code==0 and out["data"]["instrument"]["revision_id"]=="v002"
+    assert second.read_text()=="second"
+    intent=tmp_path/"intent.json"; intent.write_text(json.dumps({"intent_id":"meaning","construct":"x","interpretation":"score means x","population":"adults","use":"research","evidence_tier":"static"}))
+    call(capsys,"--project-dir",str(tmp_path),"intent","add","--input",str(intent))
+    action=call(capsys,"--project-dir",str(tmp_path),"agent","next")[1]["data"]["recommended_action"]
+    assert action["name"]=="instrument compare"
+
 def test_errors_are_enveloped(tmp_path, capsys):
     code,out=call(capsys,"--project-dir",str(tmp_path),"validate")
     assert code==1 and out["status"]=="error" and out["errors"][0]["code"]=="PROJECT_NOT_FOUND"

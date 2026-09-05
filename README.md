@@ -125,9 +125,9 @@ ep run edsl_jobs/pretest.ep --output data/results/pretest.ep
 messick results ingest --plan <plan-id> --results data/results/pretest.ep
 messick pretest analyze --source <source-id>
 messick pretest findings --source <source-id> --limit 20
+messick validate --strict
 messick report context
 messick report template
-messick validate --strict
 ```
 
 `pretest plan` validates both EDSL packages and the non-empty execution matrix
